@@ -48,6 +48,7 @@ def _lesson_time_range(lesson_number: int) -> str:
 
 
 # Formatting schedule by specific criteria
+# The default formatting would be like: Lesson 1 | Matematica | Prelegere | Cabinet (int) | Profesor
 def format_schedule(grouped: Dict[int, List[dict]]) -> str:
     lines: List[str] = []
     lines.append("Day of the week:")
@@ -61,11 +62,7 @@ def format_schedule(grouped: Dict[int, List[dict]]) -> str:
             ctype = lesson.get("cours_type") or ""
             office = lesson.get("cours_office") or ""
             teacher = lesson.get("teacher_name") or ""
-            time_range = _lesson_time_range(nr) if isinstance(nr, int) else ""
-            if time_range:
-                lines.append(f"Lesson {nr} ({time_range}): {name} {ctype} {office} {teacher}")
-            else:
-                lines.append(f"Lesson {nr}: {name} {ctype} {office} {teacher}")
+            lines.append(f"Lesson {nr} | {name} | {ctype} | {office if office else "Unknown"} | {teacher}")
     return "\n".join(lines)
 
 
