@@ -35,10 +35,12 @@ def get_raw_schedule_json(your_group_name: str, semester: int = 1, university_we
     }
     
     # Get lessons data
-    r_lessons = _get_lessons_json(data, debug=debug)
-
-    # Return the raw json data
-    return r_lessons
+    try:
+        r_lessons = _get_lessons_json(data, debug=debug)
+        return r_lessons
+    except Exception as e:
+        # Raise error
+        raise ValueError("Couldn't decode the JSON or find any data, check the input data.") from e
     
 # Get the user's group ID by name
 def _get_groups_by_name(group_name: str, csrf: str, debug: bool = False):
