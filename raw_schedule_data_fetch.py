@@ -1,6 +1,7 @@
 import requests
 from bs4 import BeautifulSoup
 
+
 # Initialize the session
 session = requests.Session()
 
@@ -10,11 +11,13 @@ url_main = "https://orar.usarb.md"
 # Get the home page (for cookies + csrf)
 r = session.get(url_main)
 
+
 # Get the CSRF token
 def get_csrf():
     soup: BeautifulSoup = BeautifulSoup(r.text, "html.parser")
     csrf: str = soup.find("meta", {"name": "csrf-token"})["content"]
     return csrf
+
 
 # Get the schedule
 def get_raw_schedule_json(your_group_name: str, semester: int = 1, university_week: int = 1, debug: bool = False):
@@ -42,6 +45,7 @@ def get_raw_schedule_json(your_group_name: str, semester: int = 1, university_we
         # Raise error
         raise ValueError("Couldn't decode the JSON or find any data, check the input data.") from e
     
+    
 # Get the user's group ID by name
 def _get_groups_by_name(group_name: str, csrf: str, debug: bool = False):
     # Get URL
@@ -68,6 +72,7 @@ def _get_groups_by_name(group_name: str, csrf: str, debug: bool = False):
     # If the group is not found, return None
     return None
 
+
 # Get the user's lessons
 def _get_lessons_json(data: dict, debug: bool = False):
     # Get URL
@@ -85,5 +90,6 @@ def _get_lessons_json(data: dict, debug: bool = False):
     return r_lessons.json()
 
 
+# Local test
 if __name__ == "__main__":
     get_raw_schedule_json("IT11Z", debug=True)
