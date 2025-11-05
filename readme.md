@@ -10,12 +10,15 @@ Python script that scrapes the CSRF token and session data from https://orar.usa
 - ✅ Automatic event updates when schedule changes
 - ✅ Supports syncing specific weeks or date ranges
 - ✅ Safe overwriting of existing events
+- ✅ **Telegram bot** for automatic monitoring and notifications
+- ✅ **Change detection** - automatically detects schedule changes
 
 ## Prerequisites
 
 1. **Python 3.7+** installed
 2. **iCloud account** with Two-Factor Authentication enabled
 3. **App-specific password** for iCloud (see setup below)
+4. **Telegram bot token** (for automatic monitoring - optional)
 
 ## Installation
 
@@ -65,6 +68,15 @@ CALENDAR_NAME=USARB Schedule
 
 # Your group name (e.g., IT11Z, IT12Z, etc.)
 GROUP_NAME=IT11Z
+
+# Telegram Bot Configuration (optional, for automatic monitoring)
+TELEGRAM_BOT_TOKEN=your_bot_token_here
+TELEGRAM_CHAT_ID=your_chat_id_here
+
+# Auto-monitoring settings
+MONITOR_WEEKS=2  # Monitor current week + next N weeks (default: 2)
+CHECK_INTERVAL_MINUTES=60  # How often to check for changes (default: 60)
+AUTO_SYNC=false  # Set to true to automatically sync when changes detected
 ```
 
 **Replace the values:**
@@ -187,6 +199,79 @@ python main.py --no-overwrite
 - **Revoke app-specific passwords** if you suspect they're compromised
 - The app-specific password can be revoked at any time from [Apple ID account page](https://appleid.apple.com/)
 
+## Telegram Bot for Automatic Monitoring
+
+The Telegram bot automatically monitors your schedule for changes and can sync your calendar when updates are detected.
+
+### Setup Telegram Bot
+
+1. **Create a Telegram Bot:**
+   - Open Telegram and search for [@BotFather](https://t.me/botfather)
+   - Send `/newbot` and follow the instructions
+   - Copy the bot token you receive
+
+2. **Get Your Chat ID:**
+   - Start a conversation with your bot
+   - Send any message to your bot
+   - Visit: `https://api.telegram.org/bot<YOUR_BOT_TOKEN>/getUpdates`
+   - Look for `"chat":{"id":123456789}` - that's your chat ID
+
+3. **Add to `.env` file:**
+   ```env
+   TELEGRAM_BOT_TOKEN=123456789:ABCdefGHIjklMNOpqrsTUVwxyz
+   TELEGRAM_CHAT_ID=123456789
+   MONITOR_WEEKS=2
+   CHECK_INTERVAL_MINUTES=60
+   AUTO_SYNC=false
+   ```
+
+4. **Run the bot:**
+   ```bash
+   python telegram_bot.py
+   ```
+
+### Bot Commands
+
+- `/start` - Start the bot and see welcome message
+- `/status` - Check current status and monitored weeks
+- `/check` - Manually check for schedule changes
+- `/sync` - Manually sync schedule to calendar
+- `/help` - Show help message
+
+### How It Works
+
+1. **Automatic Monitoring:**
+   - Bot checks for schedule changes every hour (configurable)
+   - Compares current schedule with saved snapshot
+   - Detects added, removed, or modified lessons
+
+2. **Change Detection:**
+   - When changes are detected, you'll receive a notification
+   - Shows what changed (added/removed/modified lessons)
+   - Option to manually sync or auto-sync if enabled
+
+3. **Auto-Sync (Optional):**
+   - Set `AUTO_SYNC=true` in `.env`
+   - Bot will automatically sync calendar when changes detected
+   - You'll still receive notifications about what changed
+
+### Running in Background
+
+**On macOS/Linux:**
+```bash
+# Run in background
+nohup python telegram_bot.py > bot.log 2>&1 &
+
+# Or use screen/tmux
+screen -S schedule_bot
+python telegram_bot.py
+# Press Ctrl+A then D to detach
+```
+
+**On Windows:**
+- Use Task Scheduler or run as a service
+- Or use a tool like NSSM (Non-Sucking Service Manager)
+
 ## Example Workflow
 
 ```bash
@@ -198,14 +283,20 @@ python main.py
 
 # 3. Check specific weeks
 python main.py --weeks 5,6,7 --debug
+
+# 4. Start automatic monitoring (in separate terminal)
+python telegram_bot.py
 ```
 
 ## Files
 
 - `main.py` - Main script for calendar sync
+- `telegram_bot.py` - Telegram bot for automatic monitoring
+- `schedule_monitor.py` - Schedule change detection module
 - `data_parser.py` - Parses schedule data and calculates dates
 - `raw_schedule_data_fetch.py` - Fetches raw schedule from website
 - `.env` - Your credentials (not in git)
+- `schedule_snapshot.json` - Saved schedule snapshot (auto-generated)
 - `requirements.txt` - Python dependencies
 
 ## License
