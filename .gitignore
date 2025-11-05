@@ -10,3 +10,6 @@ __pycache__
 
 # Environment variables
 .env
+
+# Schedule snapshots
+schedule_snapshot.json

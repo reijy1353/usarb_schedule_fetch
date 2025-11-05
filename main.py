@@ -3,6 +3,7 @@ Main script to sync university schedule to iCloud Calendar using CalDAV.
 """
 import os
 import sys
+import re
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 import caldav
@@ -85,18 +86,25 @@ class CalendarSync:
         
         try:
             # Search for events in date range
-            events = self.calendar.date_search(start=start_date, end=end_date)
+            events = self.calendar.search(start=start_date, end=end_date)
             
-            # Extract event IDs from UID (assuming format: event_id@domain)
+            # Extract event IDs from UID by parsing raw iCal data
             existing_events = {}
             for event in events:
                 try:
-                    vevent = event.vobject_instance.vevent
-                    uid = str(vevent.uid.value)
-                    # Extract event ID from UID (format: event_id@domain)
-                    if '@' in uid:
-                        event_id = uid.split('@')[0]
-                        existing_events[event_id] = event
+                    # Get raw iCal data
+                    ical_data = event.data
+                    if isinstance(ical_data, bytes):
+                        ical_data = ical_data.decode('utf-8')
+                    
+                    # Extract UID using regex (handle both UID: and UID; formats)
+                    uid_match = re.search(r'UID(?::|;)([^\r\n]+)', ical_data, re.IGNORECASE)
+                    if uid_match:
+                        uid = uid_match.group(1).strip()
+                        # Extract event ID from UID (format: event_id@domain)
+                        if '@' in uid:
+                            event_id = uid.split('@')[0]
+                            existing_events[event_id] = event
                 except Exception as e:
                     print(f"Warning: Could not parse event UID: {e}")
                     continue
@@ -105,6 +113,18 @@ class CalendarSync:
         except Exception as e:
             print(f"Error fetching existing events: {e}")
             return {}
+    
+    def _escape_ical_value(self, value: str) -> str:
+        """Escape special characters in iCal values."""
+        # Replace newlines with \n
+        value = value.replace('\r\n', '\\n').replace('\n', '\\n').replace('\r', '\\n')
+        # Escape special characters
+        value = value.replace('\\', '\\\\')
+        value = value.replace(',', '\\,')
+        value = value.replace(';', '\\;')
+        # Replace newlines in multi-line values with proper formatting
+        value = value.replace('\n', '\\n')
+        return value
     
     def create_or_update_event(
         self,
@@ -124,30 +144,63 @@ class CalendarSync:
             return False
         
         try:
-            # Create iCal content
-            ical_content = f"""BEGIN:VCALENDAR
-VERSION:2.0
-PRODID:-//USARB Schedule//EN
-BEGIN:VEVENT
-UID:{event_id}@usarb-schedule.local
-DTSTART:{start_dt.strftime('%Y%m%dT%H%M%S')}
-DTEND:{end_dt.strftime('%Y%m%dT%H%M%S')}
-SUMMARY:{title.replace(chr(10), ' ').replace(chr(13), ' ')}
-DESCRIPTION:{description.replace(chr(10), '\\n').replace(chr(13), '')}
-LOCATION:{location.replace(chr(10), ' ').replace(chr(13), ' ')}
-END:VEVENT
-END:VCALENDAR
-"""
+            # Escape values for iCal format
+            safe_title = self._escape_ical_value(title)
+            safe_description = self._escape_ical_value(description)
+            safe_location = self._escape_ical_value(location)
+            
+            # Create UID (must be unique)
+            uid = f"{event_id}@usarb-schedule.local"
+            
+            # Format datetime for iCal (local time, no timezone)
+            dtstart = start_dt.strftime('%Y%m%dT%H%M%S')
+            dtend = end_dt.strftime('%Y%m%dT%H%M%S')
+            
+            # Create iCal content with proper formatting
+            # Each line should be max 75 characters (folded if longer)
+            ical_lines = [
+                "BEGIN:VCALENDAR",
+                "VERSION:2.0",
+                "PRODID:-//USARB Schedule//EN",
+                "BEGIN:VEVENT",
+                f"UID:{uid}",
+                f"DTSTART:{dtstart}",
+                f"DTEND:{dtend}",
+                f"SUMMARY:{safe_title}",
+            ]
+            
+            # Add description if present
+            if safe_description:
+                # iCal format: DESCRIPTION:value (can be folded if >75 chars)
+                # For now, just add it - caldav will handle folding if needed
+                ical_lines.append(f"DESCRIPTION:{safe_description}")
+            
+            # Add location if present
+            if safe_location:
+                ical_lines.append(f"LOCATION:{safe_location}")
+            
+            ical_lines.extend([
+                "END:VEVENT",
+                "END:VCALENDAR",
+                ""  # Final newline
+            ])
+            
+            # Join with CRLF (iCal standard)
+            ical_content = "\r\n".join(ical_lines)
             
             # Save event using caldav
-            self.calendar.save_event(
-                ical_content,
-                object_id=f"{event_id}.ics"
-            )
-            return True
-        except Exception as e:
-            print(f"Error creating/updating event: {e}")
-            return False
+            try:
+                self.calendar.save_event(
+                    ical_content.encode('utf-8'),
+                    object_id=f"{event_id}.ics"
+                )
+                return True
+            except Exception as inner_e:
+                # Treat 412 Precondition Failed as 'already exists' and continue
+                if "412 Precondition Failed" in str(inner_e):
+                    return True
+                print(f"Error creating/updating event: {inner_e}")
+                return False
     
     def sync_lessons(
         self,
