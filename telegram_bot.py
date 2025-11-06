@@ -50,7 +50,7 @@ class ScheduleBot:
             raise ValueError("ICLOUD_USERNAME and ICLOUD_PASSWORD must be set")
         
         # Initialize bot
-        self.application = Application.builder().token(self.bot_token).build()
+        self.application = Application.builder().token(self.bot_token).post_init(self._setup_commands_menu).build()
         self._setup_handlers()
     
     def _setup_handlers(self):
@@ -60,6 +60,18 @@ class ScheduleBot:
         self.application.add_handler(CommandHandler("sync", self.sync_command))
         self.application.add_handler(CommandHandler("check", self.check_command))
         self.application.add_handler(CommandHandler("help", self.help_command))
+
+    async def _setup_commands_menu(self, application: Application):
+        """Register hints for each command handler."""
+        commands = [
+            ("start", "Start the bot"),
+            ("status", "Check current status and monitored weeks"),
+            ("sync", "Manually sync schedule to calendar"),
+            ("check", "Check for schedule changes"),
+            ("help", "Shows all the commands you can use"),
+        ]
+        
+        await application.bot.set_my_commands(commands)
     
     async def start_command(self, update: Any, context: ContextTypes.DEFAULT_TYPE):
         """Handle /start command."""
