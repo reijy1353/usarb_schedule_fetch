@@ -33,5 +33,8 @@ if __name__ == "__main__":
     for i in data["week"]:
         parsed_data[mapping[i["day_number"]]].append(i)
         
-    for key, value in parsed_data.items():
-        print(f"{key}: {value}\n")
+    for day, lessons in parsed_data.items():
+        print(f"\nOn {day.upper()} you have:")
+        for lesson in lessons:
+            print(f"Lesson {lesson["cours_nr"]} | {lesson["teacher_name"]} |"
+                  f"aud. {lesson["cours_office"] if lesson["cours_office"] else "Unknown"}") 
