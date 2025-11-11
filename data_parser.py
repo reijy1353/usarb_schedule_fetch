@@ -1,11 +1,20 @@
 
-pass
+import hashlib
 
 from raw_schedule_data_fetch import get_raw_schedule_data
 
 # ! will be using md5 for event ID's (https://chatgpt.com/share/691252a6-d8f8-8003-a3ec-aadcfc3c2329)
 
 
+def get_lesson_hash(lesson_day: int, lesson_nr: int, lesson_name: str, lesson_type: str, office: int, teacher: str, debug: bool = False):
+
+    to_hash = f"{lesson_day}{lesson_nr}{lesson_name}{lesson_type}{office}{teacher}"
+    hash = hashlib.md5(to_hash.encode()).hexdigest()[:32]
+    
+    if debug:
+        print(f"DEBUG: {hash}")
+
+    return hash
 
 
 if __name__ == "__main__":
@@ -47,8 +56,8 @@ if __name__ == "__main__":
                 "lesson_nr": "",
                 "lesson_name": "",
                 "lesson_type": "",
-                "office_nr": "",
-                "teacher_name": "",
+                "office": "",
+                "teacher": "",
                 
             },
             "hash2": {},
