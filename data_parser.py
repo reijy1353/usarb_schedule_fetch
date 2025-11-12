@@ -1,13 +1,26 @@
 
 import hashlib
+import json
+from collections import defaultdict
+from typing import Any
 
 from raw_schedule_data_fetch import get_raw_schedule_data
 
-# ! will be using md5 for event ID's (https://chatgpt.com/share/691252a6-d8f8-8003-a3ec-aadcfc3c2329)
-
-
 def get_lesson_hash(lesson_day: int, lesson_nr: int, lesson_name: str, lesson_type: str, office: int, teacher: str, debug: bool = False):
+    """Returning a 32 character hash created using MD5 and a string from the given args
 
+    Args:
+        lesson_day (int): lesson day
+        lesson_nr (int): lessons number
+        lesson_name (str): lesson name
+        lesson_type (str): lesson type
+        office (int): office
+        teacher (str): teacher
+        debug (bool, optional): debug. Defaults to False.
+
+    Returns:
+        _type_: hash
+    """
     to_hash = f"{lesson_day}{lesson_nr}{lesson_name}{lesson_type}{office}{teacher}"
     hash = hashlib.md5(to_hash.encode()).hexdigest()[:32]
     
@@ -16,51 +29,84 @@ def get_lesson_hash(lesson_day: int, lesson_nr: int, lesson_name: str, lesson_ty
 
     return hash
 
+    
+def get_schedule(group_name: str, *weeks: int, debug: bool = False):
+    """All the specifications/keywords we need:
+        cours_nr -> lesson number (1 - 8)
+        cours_name -> name of the course/class (e.g. Math)
+        cours_office -> locatin (e.g. 224)
+        teacher_name -> name of the teacher (e.g. Cernolev C.)
+        cours_type -> type of any course (e.g. Prelegere, Seminar etc.)
+        day_number -> the day when it happends (1-7, we'll be needing/using just 1-6, don't think you want to study on Sundays)
+        week -> number of the week (relatively from 01.09.2025, which was week 1)
+
+    Args:
+        group_name (str): name of your group (the group you're in)
+        debug (bool, optional): debug. Defaults to False.
+
+    Returns:
+        _type_: _description_
+    """
+
+    schedule = defaultdict[Any, defaultdict[Any, dict]](lambda: defaultdict[Any, dict](dict))
+    
+    for week in weeks:
+        raw_schedule = get_raw_schedule_data(group_name, university_week=week)
+
+        lessons_by_day = {
+            1: [],
+            2: [],
+            3: [],
+            4: [],
+            5: [],
+            6: [],
+            7: [],
+        }
+        
+        for i in raw_schedule["week"]:
+            lessons_by_day[i["day_number"]].append(i)    
+            
+        if debug:
+            print(f"\n\nDEBUG lessons_by_day: {lessons_by_day}")
+
+        for lessons in lessons_by_day.values():
+            if debug:
+                print(f"\n\nDEBUG lessons: {lessons}")
+
+            for lesson in lessons:
+                lesson_day = lesson["day_number"]
+                lesson_nr = lesson["cours_nr"]
+                lesson_name = lesson["cours_name"]
+                lesson_type = lesson["cours_type"]
+                office = lesson["cours_office"]
+                teacher = lesson["teacher_name"]
+                
+                # Get the lesson hash
+                lesson_hash = get_lesson_hash(lesson_day, lesson_nr, lesson_name, lesson_type, office, teacher)
+                
+                # Write everyting in the schedule dict
+                schedule[week][lesson_hash]["lesson_day"] = lesson_day
+                schedule[week][lesson_hash]["lesson_nr"] = lesson_nr
+                schedule[week][lesson_hash]["lesson_name"] = lesson_name
+                schedule[week][lesson_hash]["lesson_type"] = lesson_type
+                schedule[week][lesson_hash]["office"] = office
+                schedule[week][lesson_hash]["teacher"] = teacher
+                
+                if debug:
+                    print(f"\n\nDEBUG schedule by lesson_hash: f{schedule[week][lesson_hash]}")
+
+    if debug:
+        print(f"\n\nDEBUG schedule itself: {schedule}")
+
+    return schedule
+                    
+
+def save_schedule_to_json(group_name: str, *weeks: int, debug: bool = False):
+    schedule = get_schedule(group_name, *weeks)
+
+    with open("schedule_snapshot.json", "w") as f:
+        json.dump(schedule, f, indent=4)
+        
 
 if __name__ == "__main__":
-    data = get_raw_schedule_data("IT11Z", university_week=11, debug=False)
-
-    mapping = {        
-        1: "monday",
-        2: "tuesday",
-        3: "wednesday",
-        4: "thursday",
-        5: "friday",
-        6: "saturday",
-    }
-    
-    parsed_data = {
-        "monday": [],
-        "tuesday": [],
-        "wednesday": [],
-        "thursday": [],
-        "friday": [],
-        "saturday": [],
-    }
-    
-    for i in data["week"]:
-        parsed_data[mapping[i["day_number"]]].append(i)
-        
-    for day, lessons in parsed_data.items():
-        if parsed_data[day]:
-            print(f"\nOn {day.upper()} you have:")
-            for lesson in lessons:
-                print(f"Lesson {lesson["cours_nr"]} | {lesson["teacher_name"]} |"
-                    f"aud. {lesson["cours_office"] if lesson["cours_office"] else "Unknown"}") 
-
-    # How will the json/dict of lessons look
-    lessons = {
-        "11": {
-            "hash1" : {
-                "lesson_day": "",
-                "lesson_nr": "",
-                "lesson_name": "",
-                "lesson_type": "",
-                "office": "",
-                "teacher": "",
-                
-            },
-            "hash2": {},
-        },
-        "12": {}, # 11 and 12 are the number of the week
-    }
+    save_schedule_to_json("IT11Z", *(10, 11, 12))
