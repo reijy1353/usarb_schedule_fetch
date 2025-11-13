@@ -65,8 +65,12 @@ class CalendarSchedule:
         """Fetching the data from the last schedule snapshot"""
 
         # Open the json file and load the snapshot into a variable
-        with open(snapshot_directory, "r") as fp:
-            schedule_snapshot = json.load(fp)
+        try:
+            with open(snapshot_directory, "r") as fp:
+                schedule_snapshot = json.load(fp)
+        except FileNotFoundError:
+            print(f"The file \"{snapshot_directory}\" doesn't exist.")
+            return None
 
         # Debug
         if self.debug:
@@ -80,4 +84,4 @@ if __name__ == "__main__":
     app = CalendarSchedule()
     app.debug = True
 
-    app.fetch_data_from_snapshot("nope")
+    app.get_data_from_snapshot("nope")
