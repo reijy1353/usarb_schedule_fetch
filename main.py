@@ -4,6 +4,7 @@ from re import S
 from typing import Any
 from dotenv import load_dotenv
 from datetime import datetime, date, time, timedelta
+import caldav
 from caldav.davclient import get_davclient
 from caldav.lib.error import NotFoundError
 
@@ -66,18 +67,18 @@ class CalendarSchedule:
 
         return week_number
 
-    def get_date_from_this_week_on(self, postpone: int, week: int = None) -> Any | None:
+    def get_date_from_this_week_on(self, week: int = None, postpone: int = 3) -> Any | None:
         """Get a range of dates, from first day of the university week, to the 
         one calculated by formula week + postpone (e.g. week = 10, postone = 3)
         returns the range from start of week 10, till then end of week 10 + 3 = 13.
 
         Args:
-            week (int): This week
-            postpone (int): How many weeks on you want to prolong your calendar
+            week (int): A week (1-the_end). Defaults to self.get_this_week()
+            postpone (int): How many weeks on you want to prolong your calendar. Defaults to 3.
 
         Returns:
             start_date: The date of the first day of the first week
-            end_date: The last day of the last week (calculated from week+postpone)
+            end_date: The last day of the last week (calculated from week+postpone).
         """
         # If no week is given, use "this" week by default
         if week is None:
@@ -101,7 +102,6 @@ class CalendarSchedule:
 
     def get_data_from_snapshot(self, snapshot_directory: str = "schedule_snapshot.json"):
         """Fetching the data from the last schedule snapshot"""
-
         # Open the json file and load the snapshot into a variable
         try:
             with open(snapshot_directory, "r") as fp:
@@ -128,23 +128,45 @@ class CalendarSchedule:
             url=self.caldav_url   
         ) as client:
         
+            # Get my_principal
             my_principal = client.principal()
 
+            # Try to fetch schedule targeted calendar
             try:
                 my_calendar = my_principal.calendar(name=self.calendar_name)
             except NotFoundError:
                 print(f"You don't seem to have a calendar named {self.calendar_name}")
                 return None
                 
+            # Debug
             if self.debug:
                 print(f"DEBUG: type {type(my_calendar)}")
                 print(f"DEBUG: calendar {my_calendar}")
         
             return my_calendar
-        
+    
+    def fetch_events(self, my_calendar: caldav.collection.Calendar = None):
+        # Get the default my_calendar if None
+        if my_calendar is None:
+            my_calendar = self.get_calendar()
+            
+        # Get start and end date (for searching events)
+        start_date, end_date = self.get_date_from_this_week_on()
+
+        my_events = my_calendar.search(
+            event=True,
+            start=start_date,
+            end=end_date,
+            expand=True
+        )
+
+        print(my_events)
+
 # Local testing
 if __name__ == "__main__":
     app = CalendarSchedule()
     app.debug = True
 
-    app.get_date_from_this_week_on(3)
+    # app.get_date_from_this_week_on(3)
+    # app.get_calendar()
+    app.fetch_event()
