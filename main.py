@@ -1,4 +1,5 @@
 import os
+import json
 from dotenv import load_dotenv
 from datetime import datetime, date, time, timedelta
 
@@ -59,6 +60,19 @@ class CalendarSchedule:
             print(f"DEBUG: week_number: {week_number}")
 
         return week_number
+
+    def get_data_from_snapshot(self, snapshot_directory: str = "schedule_snapshot.json"):
+        """Fetching the data from the last schedule snapshot"""
+
+        # Open the json file and load the snapshot into a variable
+        with open(snapshot_directory, "r") as fp:
+            schedule_snapshot = json.load(fp)
+
+        # Debug
+        if self.debug:
+            print(f"DEBUG: data from json: {schedule_snapshot}")
+        
+        return schedule_snapshot
         
 
 # Local testing
@@ -66,4 +80,4 @@ if __name__ == "__main__":
     app = CalendarSchedule()
     app.debug = True
 
-    app.get_week_from_today()
+    app.fetch_data_from_snapshot("nope")
