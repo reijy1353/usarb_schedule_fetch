@@ -1,7 +1,7 @@
 import os
 import json
 from re import S
-from typing import Any
+from typing import Any, Literal, overload
 from dotenv import load_dotenv
 from datetime import datetime, date, time, timedelta
 import caldav
@@ -67,7 +67,23 @@ class CalendarSchedule:
 
         return week_number
 
-    def get_date_from_this_week_on(self, week: int = None, postpone: int = 3) -> Any | None:
+    @overload
+    def get_date_from_this_week_on(
+        self,
+        week: int | None = ...,
+        postpone: int = ...,
+        mode: Literal["dates"] = ...,
+    ) -> tuple[date, date]: ...
+
+    @overload
+    def get_date_from_this_week_on(
+        self,
+        week: int | None = ...,
+        postpone: int = ...,
+        mode: Literal["weeks"] = ...,
+    ) -> list[int]: ...
+
+    def get_date_from_this_week_on(self, week: int | None = None, postpone: int = 3, mode: str = "dates"):
         """Get a range of dates, from first day of the university week, to the 
         one calculated by formula week + postpone (e.g. week = 10, postone = 3)
         returns the range from start of week 10, till then end of week 10 + 3 = 13.
@@ -77,13 +93,21 @@ class CalendarSchedule:
             postpone (int): How many weeks on you want to prolong your calendar. Defaults to 3.
 
         Returns:
-            start_date: The date of the first day of the first week
-            end_date: The last day of the last week (calculated from week+postpone).
+            mode ("dates"): a range of dates from the first day of `week` to the last day of `week + postpone`, OR
+            mode ("weeks"): a range of week numbers (week, week + postpone)
         """
         # If no week is given, use "this" week by default
         if week is None:
             week = self.get_this_week()
             print(f"week var wasn't given, setting up this week by default (week = {week})")
+
+        # for mode = "weeks" return the range of weeks
+        if mode == "weeks":
+            # Debug
+            if self.debug:
+                print(f"\n\nDEBUG: mode \"weeks\" active returns {list[int](range(week, week + postpone))}")
+            
+            return list[int](range(week, week + postpone))
 
         # Get the start_date
         # formula: start_date = FIRST_DAY + 7 * week
@@ -95,10 +119,17 @@ class CalendarSchedule:
 
         # Debug
         if self.debug:
+            print(f"\n\nDEBUG: mode \"dates\" active:")
             print(f"DEBUG: start_date = {start_date}")
             print(f"DEBUG: end_date = {end_date}")
         
-        return start_date, end_date
+        # Return (types vary by mode)
+        if mode == "dates":
+            return start_date, end_date
+
+        else:
+            raise ValueError("mode must be either 'dates' or 'weeks'")
+            
 
     def get_data_from_snapshot(self, snapshot_directory: str = "schedule_snapshot.json"):
         """Fetching the data from the last schedule snapshot"""
@@ -112,7 +143,7 @@ class CalendarSchedule:
 
         # Debug
         if self.debug:
-            print(f"DEBUG: data from json: {schedule_snapshot}")
+            print(f"\n\nDEBUG: data from json: {schedule_snapshot}")
         
         return schedule_snapshot
         
@@ -140,7 +171,7 @@ class CalendarSchedule:
                 
             # Debug
             if self.debug:
-                print(f"DEBUG: type {type(my_calendar)}")
+                print(f"\n\nDEBUG: type {type(my_calendar)}")
                 print(f"DEBUG: calendar {my_calendar}")
         
             return my_calendar
@@ -162,11 +193,12 @@ class CalendarSchedule:
 
         print(my_events)
 
+
 # Local testing
 if __name__ == "__main__":
     app = CalendarSchedule()
     app.debug = True
 
-    # app.get_date_from_this_week_on(3)
+    app.get_date_from_this_week_on(mode="dates")
     # app.get_calendar()
-    app.fetch_event()
+    # app.fetch_event()
