@@ -147,35 +147,40 @@ class CalendarSchedule:
         
         return schedule_snapshot
         
-    def get_calendar(self):
-        """Get the calendar that you'll be using for your Schedule (from .env)
+    def connect(self):
+        with get_davclient(
+            username=self.username,
+            password=self.password,
+            url=self.caldav_url,
+        ) as client:
+            my_principal = client.principal()
+            return my_principal
+    
+    def get_or_create_calendar(self):
+        """Get the calendar used for schedule, if none exists, it'll create a new one
+        naming it by calendar_name from .env
 
         Returns:
             my_calendar: Your calendar
         """
-        with get_davclient(
-            username=self.username,
-            password=self.password,
-            url=self.caldav_url   
-        ) as client:
-        
-            # Get my_principal
-            my_principal = client.principal()
+        # Get my_principal (connect)
+        my_principal = self.connect()
 
-            # Try to fetch schedule targeted calendar
-            try:
-                my_calendar = my_principal.calendar(name=self.calendar_name)
-            except NotFoundError:
-                print(f"You don't seem to have a calendar named {self.calendar_name}")
-                return None
-                
-            # Debug
-            if self.debug:
-                print(f"\n\nDEBUG: type {type(my_calendar)}")
-                print(f"DEBUG: calendar {my_calendar}")
-        
-            return my_calendar
+        # Try to fetch schedule targeted calendar
+        try:
+            my_calendar = my_principal.calendar(name=self.calendar_name)
+        except NotFoundError:
+            print(f"You don't seem to have a calendar named {self.calendar_name}")
+            print(f"But we'll create one just for you.")
+            my_calendar = my_principal.make_calendar(name=self.calendar_name)
+            
+        # Debug
+        if self.debug:
+            print(f"\n\nDEBUG: type {type(my_calendar)}")
+            print(f"DEBUG: calendar {my_calendar}")
     
+        return my_calendar
+
     def fetch_events(self, my_calendar: caldav.collection.Calendar = None):
         # Get the default my_calendar if None
         if my_calendar is None:
@@ -199,6 +204,10 @@ if __name__ == "__main__":
     app = CalendarSchedule()
     app.debug = True
 
-    app.get_date_from_this_week_on(mode="dates")
+    # app.get_date_from_this_week_on(mode="dates")
     # app.get_calendar()
     # app.fetch_event()
+    
+    my_calendar = app.get_or_create_calendar()
+    print(my_calendar)
+    
