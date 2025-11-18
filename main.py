@@ -172,6 +172,18 @@ class CalendarSchedule:
                 # Returning client.principal() if everything's fine
                 return my_principal
     
+    def _escape_ical_value(self, value: str) -> str:
+        """Escape special characters in iCal values."""
+        # Replace newlines with \n
+        value = value.replace('\r\n', '\\n').replace('\n', '\\n').replace('\r', '\\n')
+        # Escape special characters
+        value = value.replace('\\', '\\\\')
+        value = value.replace(',', '\\,')
+        value = value.replace(';', '\\;')
+        # Replace newlines in multi-line values with proper formatting
+        value = value.replace('\n', '\\n')
+        return value
+    
     def get_or_create_calendar(self) -> caldav.Calendar:
         """Get the calendar used for schedule, if none exists, it'll create a new one
         naming it by calendar_name from .env
@@ -201,20 +213,45 @@ class CalendarSchedule:
         # )
 
         # Method 2: using .save_even() fucntion with icalendar code
-        event_code = f"""   BEGIN:VCALENDAR
-                            VERSION:2.0
-                            PRODID:-//Example Corp.//CalDAV Client//EN
-                            BEGIN:VEVENT
-                            UID:20200516T060000Z-123401@example.com
-                            DTSTAMP:20200516T060000Z
-                            DTSTART:20200517T060000Z
-                            DTEND:20200517T230000Z
-                            RRULE:FREQ=YEARLY
-                            SUMMARY:Do the needful
-                            END:VEVENT
-                            END:VCALENDAR
-                            """
+        hash_example = "somethingimpossible@usarb.local"
+        description = [
+            "one_line",
+            "two_line",
+            "last_line",
+        ]
+        
+        description = self._escape_ical_value("\n".join(description))
+        # event_code = 
             
+        november_18_lines = [
+            "BEGIN:VCALENDAR",
+            "VERSION:2.0",
+            "PROID:-//USARB Schedule//EN",
+            "BEGIN:VEVENT",
+            f"UID:{hash_example}",
+            f"DTSTART:20251118T060000Z",
+            f"DTEND:20251118T100000Z",
+            f"SUMMARY:Do the needfulness",
+            f"DESCRIPTION:{description}",
+            f"END:VEVENT",
+            "BEGIN:VEVENT",
+            f"UID:19november",
+            f"DTSTART:20251119T060000Z",
+            f"DTEND:20251119T100000Z",
+            f"SUMMARY:Do the needfulness",
+            f"DESCRIPTION:{description}",
+            f"END:VEVENT",
+            f"END:VCALENDAR",
+            "",
+        ]
+        
+        content = "\r\n".join(november_18_lines)
+            
+        november_18 = my_calendar.save_event(
+            content.encode("utf-8"),
+            object_id=f"raw-hash.ics"
+        )
+
         # Debug
         if self.debug:
             print(f"\n\nDEBUG: type {type(my_calendar)}")
@@ -258,11 +295,14 @@ if __name__ == "__main__":
 
     # app.get_date_from_this_week_on(mode="dates")
     # app.get_or_create_calendar()
-    # app.fetch_event()
+    my_events = app.fetch_events()
+    print(my_events[0].data)
     
-    my_calendar = app.get_or_create_calendar()
-    print(my_calendar)
+    # my_calendar = app.get_or_create_calendar()
+    # print(my_calendar)
 
     # my_principal = app.connect()
     # print(my_principal)
+    
+    # print(datetime.now().strftime("%d%m%y"))
     
