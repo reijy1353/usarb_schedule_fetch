@@ -26,7 +26,7 @@ def get_lesson_hash(lesson_day: int, lesson_nr: int, lesson_name: str, lesson_ty
     if debug:
         print(f"DEBUG: {hash}")
 
-    return f"{hash}@usarb.local"
+    return f"{hash}@usarb-schedule.local"
 
     
 def get_schedule(group_name: str, *weeks: int, debug: bool = False):
