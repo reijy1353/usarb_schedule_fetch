@@ -148,16 +148,23 @@ class CalendarSchedule:
         return schedule_snapshot
         
     def connect(self):
+        """Connecting to the calendar
+        
+        Returns:
+            my_principal: Your principal
+        """
         with get_davclient(
             username=self.username,
             password=self.password,
             url=self.caldav_url,
         ) as client:
+            # Try/Except block for receiving my_principal from calDAV
             try:
                 my_principal = client.principal()
             except Exception as e:
                 print(f"There's a problem making a connection: {e}")
             finally:
+                # Returning client.principal() if everything's fine
                 return my_principal
     
     def get_or_create_calendar(self):
@@ -184,15 +191,22 @@ class CalendarSchedule:
             print(f"DEBUG: calendar {my_calendar}")
     
         return my_calendar
-
+    
+    # This function won't be used in the main process, but it's here for testing purposes
     def fetch_events(self, my_calendar: caldav.collection.Calendar = None):
+        """Fetching the events from the calendar
+        
+        Returns:
+            my_events: Your events
+        """
         # Get the default my_calendar if None
         if my_calendar is None:
-            my_calendar = self.get_calendar()
+            my_calendar = self.get_or_create_calendar()
             
         # Get start and end date (for searching events)
         start_date, end_date = self.get_date_from_this_week_on()
 
+        # Search for events
         my_events = my_calendar.search(
             event=True,
             start=start_date,
@@ -200,7 +214,11 @@ class CalendarSchedule:
             expand=True
         )
 
-        print(my_events)
+        # Debug
+        if self.debug:
+            print(f"\n\nDEBUG: my_events: {my_events}")
+
+        return my_events
 
 
 # Local testing
@@ -209,7 +227,7 @@ if __name__ == "__main__":
     app.debug = True
 
     # app.get_date_from_this_week_on(mode="dates")
-    # app.get_calendar()
+    # app.get_or_create_calendar()
     # app.fetch_event()
     
     # my_calendar = app.get_or_create_calendar()
