@@ -241,6 +241,9 @@ For issues or questions:
 2. Review the code comments for implementation details
 3. Enable debug mode to see detailed execution logs
 
+Still having troubles?
+- You can contact me... just kidding, do not even think 'bout that. But I know you're close to fixing that problem of yours, just don't give up.
+
 ---
 
-**Made with ❤️ for USARB students**
+**byebye:)**
