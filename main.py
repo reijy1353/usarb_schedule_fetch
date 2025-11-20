@@ -112,7 +112,7 @@ class CalendarSchedule:
 
     def _get_date_from_this_week_on(self, week: int | None = None, postpone: int = 3, mode: str = "dates"):
         """Get a range of dates, from first day of the university week, to the 
-        one calculated by formula week + postpone (e.g. week = 10, postone = 3)
+        one calculated by formula week + postpone (e.g. week = 10, postpone = 3)
         returns the range from start of week 10, till then end of week 10 + 3 = 13.
 
         Args:
@@ -141,7 +141,6 @@ class CalendarSchedule:
         start_date = FIRST_DAY + timedelta(days=7) * (week - 1)
 
         # Get the end_date
-        # forumula: end_date = (start_date + 7 * postpone) - 1
         end_date = (start_date + timedelta(days=7) * postpone) - timedelta(days=1)
 
         # Debug
@@ -188,12 +187,12 @@ class CalendarSchedule:
         return dt.strftime("%Y%m%dT%H%M%SZ")
 
     def _convert_to_ics_datetime(self, dt_start: datetime = None, dt_end: datetime = None) -> Tuple[str, str]:
-        "Returns dt start and end formated by .ics data requirements"
+        "Returns dt start and end formatted by .ics data requirements"
         dt_start = self._stringify_ics_datetime(dt_start)
         dt_end = self._stringify_ics_datetime(dt_end)
         return dt_start, dt_end
 
-    def _escape_ical_value(self, value: str) -> str:
+    def _escape_ics_value(self, value: str) -> str:
         """Escape special characters in iCal values."""
         # Replace newlines with \n
         value = value.replace('\r\n', '\\n').replace('\n', '\\n').replace('\r', '\\n')
@@ -206,7 +205,7 @@ class CalendarSchedule:
         return value
     
     # Feature in later update
-    # e.g. where we need to make a difference between two scheules
+    # e.g. where we need to make a difference between two schedules
     def get_data_from_snapshot(self, snapshot_directory: str = "schedule_snapshot.json"):
         """Fetching the data from the last schedule snapshot"""
         # Open the json file and load the snapshot into a variable
@@ -249,7 +248,7 @@ class CalendarSchedule:
         return my_calendar
 
     def parse_schedule_data(self, group_name: str = None, weeks: list[int] = None):
-        """Pasing the data from get_schedule(), adding it up to a ics data set and
+        """Parsing the data from get_schedule(), adding it up to a ics data set and
         add to the calendar itself.
         """
         
@@ -265,7 +264,7 @@ class CalendarSchedule:
             if self.debug:
                 print(f"\n\nDEBUG: The weeks by default are: {weeks}")
 
-        # If we get just one week and it's int transform it into an itreable object
+        # If we get just one week and it's int transform it into an iterable object
         if isinstance(weeks, int):
             weeks = [weeks]
         
@@ -286,7 +285,7 @@ class CalendarSchedule:
         for week in weeks:
             my_schedule = get_raw_schedule_data(your_group_name=group_name, university_week=week)
             
-            # Loop for parsing every leeson from a university week
+            # Loop for parsing every lesson from a university week
             for lesson in my_schedule["week"]:
                 # Get the data needed from my_schedule dict
                 lesson_nr = lesson["cours_nr"]
@@ -306,7 +305,7 @@ class CalendarSchedule:
 
                 # Generate a summary
                 summary = f"{lesson_name} | {lesson_type}"
-                _safe_summary = self._escape_ical_value(summary)
+                _safe_summary = self._escape_ics_value(summary)
                 
                 # Generate a description
                 description_lines = [
@@ -315,7 +314,7 @@ class CalendarSchedule:
                     f"Office: {office if office else "Unknown"}",
                     f"Teacher: {teacher}"
                 ]
-                _safe_description = self._escape_ical_value("\n".join(description_lines))
+                _safe_description = self._escape_ics_value("\n".join(description_lines))
 
                 # Generate ics data
                 lesson_lines = [
