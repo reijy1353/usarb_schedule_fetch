@@ -5,7 +5,7 @@ from typing import Any
 
 from raw_schedule_data_fetch import get_raw_schedule_data
 
-def get_lesson_id(lesson_day: int, lesson_nr: int, lesson_name: str, lesson_type: str, office: int, teacher: str, debug: bool = False):
+def get_lesson_id(group_name: str, week: int, lesson_day: int, lesson_nr: int, lesson_name: str, lesson_type: str, teacher: str, debug: bool = False):
     f"""Returning a 32 character hash created using MD5 and a string from the given args
 
     Args:
@@ -21,7 +21,7 @@ def get_lesson_id(lesson_day: int, lesson_nr: int, lesson_name: str, lesson_type
         string: [your_hash]@usarb-schedule.local
     """
     # Get string for hash transform and transform it using MD5
-    to_hash = f"{lesson_day}{lesson_nr}{lesson_name}{lesson_type}{office}{teacher}"
+    to_hash = f"{group_name}{week}{lesson_day}{lesson_nr}{lesson_name}{lesson_type}{teacher}"
     hash = hashlib.md5(to_hash.encode()).hexdigest()[:32]
     
     # Debug
@@ -95,7 +95,7 @@ def get_schedule_for_snapshot(group_name: str, *weeks: int, debug: bool = False)
                 teacher = lesson["teacher_name"]
                 
                 # Get the lesson hash
-                lesson_hash = get_lesson_id(lesson_day, lesson_nr, lesson_name, lesson_type, office, teacher)
+                lesson_hash = get_lesson_id(group_name, week, lesson_day, lesson_nr, lesson_name, lesson_type, teacher)
                 
                 # Write everyting in the schedule dict
                 schedule[week][lesson_hash]["lesson_day"] = lesson_day
