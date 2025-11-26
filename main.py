@@ -58,6 +58,9 @@ class CalendarSchedule:
                     print(f"\n\nDEBUG: type {type(my_principal)}")
                     print(f"\n\nDEBUG: my_principal: {my_principal}")
                 
+                # User info
+                print(f"✅ Succesfully connected to the calendar.")
+
                 # Returning client.principal() if everything's fine
                 return my_principal
             
@@ -126,14 +129,14 @@ class CalendarSchedule:
         # If no week is given, use "this" week by default
         if week is None:
             week = self._get_this_week()
-            print(f"week wasn't given, setting up the week your in by default (week = {week})")
+            print(f"🚂 week set by default (week = {week}, postpone = {postpone})")
 
         # for mode = "weeks" return the range of weeks
         if mode == "weeks":
             # Debug
             if self.debug:
                 print(f"\n\nDEBUG: mode \"weeks\" active returns {list[int](range(week, week + postpone))}")
-            
+
             return list[int](range(week, week + postpone))
 
         # Get the start_date
@@ -247,7 +250,6 @@ class CalendarSchedule:
     
         return my_calendar
 
-    # TODO fix not saving glich, save each week individually...
     def sync_schedule(self, group_name: str = None, weeks: list[int] = None):
         """Parsing the data from get_schedule(), adding it up to a ics data set and
         add to the calendar itself.
@@ -288,7 +290,7 @@ class CalendarSchedule:
         # Loop for parsing my_schedule week by week
         for week in weeks:
             # User info
-            print(f"Working on week {week}")
+            print(f"🔵 Working on week {week}")
 
             my_schedule = get_raw_schedule_data(your_group_name=group_name, university_week=week)
             lessons = my_schedule.get("week") or []
@@ -354,7 +356,7 @@ class CalendarSchedule:
 
         # Save the event
         saved_event = my_calendar.save_event(content.encode("utf-8"), object_id=f"{lesson_id}.ics")
-        print("Event/Events succesfully created.")
+        print("✅ Event/Events succesfully created.")
 
         # Debug
         if self.debug:
