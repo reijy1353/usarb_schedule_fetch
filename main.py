@@ -321,12 +321,8 @@ class CalendarSchedule:
         
     def save_lesson(self, lesson: dict, group_name: str, week: int, event_lines: list):
         # Get the data needed from my_schedule dict
-        lesson_nr = lesson["cours_nr"]
-        lesson_name = lesson["cours_name"]
-        lesson_type = lesson["cours_type"]
-        lesson_day = lesson["day_number"]
-        office = lesson["cours_office"]
-        teacher = lesson["teacher_name"]
+        lesson_nr, lesson_name, lesson_type,\
+            lesson_day, office, teacher = self.get_lesson_variables(lesson)
 
         # Get lesson's hash (UID)
         lesson_id = get_lesson_id(group_name, week, lesson_day, lesson_nr, lesson_name, lesson_type, teacher)
@@ -371,6 +367,18 @@ class CalendarSchedule:
         if self.debug:
             print(f"\n\nDEBUG: ICS Lesson Lines: {lesson_lines}")
     
+    def get_lesson_variables(self, lesson: dict):
+        """Get all the variables needed from a lesson"""
+
+        lesson_nr = lesson["cours_nr"]
+        lesson_name = lesson["cours_name"]
+        lesson_type = lesson["cours_type"]
+        lesson_day = lesson["day_number"]
+        office = lesson["cours_office"]
+        teacher = lesson["teacher_name"]
+
+        return lesson_nr, lesson_name, lesson_type, lesson_day, office, teacher
+
     # This function won't be used in the main process, but it's here for testing purposes
     def fetch_events(self, my_calendar: caldav.Calendar | None = None) -> list[caldav.Event]:
         """Fetching the events from the calendar
