@@ -292,57 +292,14 @@ class CalendarSchedule:
             # User info
             print(f"🔵 Working on week {week}")
 
+            # Get the raw schedule (as my_schedule) and lessons from it
             my_schedule = get_raw_schedule_data(your_group_name=group_name, university_week=week)
             lessons = my_schedule.get("week") or []
+
             # Loop for parsing every lesson from a university week
             for lesson in lessons:
-                # Get the data needed from my_schedule dict
-                lesson_nr = lesson["cours_nr"]
-                lesson_name = lesson["cours_name"]
-                lesson_type = lesson["cours_type"]
-                lesson_day = lesson["day_number"]
-                office = lesson["cours_office"]
-                teacher = lesson["teacher_name"]
-
-                # Get lesson's hash (UID)
-                lesson_id = get_lesson_id(group_name, week, lesson_day, lesson_nr, lesson_name, lesson_type, teacher)
-                
-                # Get dt_start and dt_end, then convert into a proper form
-                dt_start, dt_end = self._get_lesson_date_and_time(week, lesson_day, lesson_nr)
-                dt_start, dt_end = self._convert_to_ics_datetime(dt_start, dt_end)
-
-                # Generate a summary
-                summary = f"{lesson_name} | {lesson_type}"
-                _safe_summary = self._escape_ics_value(summary)
-                
-                # Generate a description
-                description_lines = [
-                    f"Lesson {lesson_nr}",
-                    f"Type: {lesson_type}",
-                    f"Office: {office if office else "Unknown"}",
-                    f"Teacher: {teacher}"
-                ]
-                _safe_description = self._escape_ics_value("\n".join(description_lines))
-
-                # Generate ics data
-                lesson_lines = [
-                    "BEGIN:VEVENT",
-                    f"UID:{lesson_id}@usarb-schedule.local",
-                    f"DTSTART:{dt_start}",
-                    f"DTEND:{dt_end}",
-                    f"SUMMARY:{_safe_summary}",
-                    f"DESCRIPTION:{_safe_description}",
-                    f"LOCATION:{office if office else "Unknown"}",
-                    # f"OBJECT_ID:{lesson_id}.ics",
-                    f"END:VEVENT",
-                ]
-                
-                # Add event/lesson to the ics data
-                event_lines.extend(lesson_lines)
-
-                # Debug
-                if self.debug:
-                    print(f"\n\nDEBUG: ICS Lesson Lines: {lesson_lines}")
+                # Save the lesson using the save_lesson function
+                self.save_lesson(lesson, group_name, week, event_lines)
             
         # Add the end lines to the ics content
         event_lines.extend(event_lines_end)
@@ -355,13 +312,65 @@ class CalendarSchedule:
         content = "\r\n".join(event_lines)
 
         # Save the event
-        saved_event = my_calendar.save_event(content.encode("utf-8"), object_id=f"{lesson_id}.ics")
+        saved_event = my_calendar.save_event(content.encode("utf-8"))
         print("✅ Event/Events succesfully created.")
 
         # Debug
         if self.debug:
             print(f"DEBUG: Saved event data: {saved_event}")
         
+    def save_lesson(self, lesson: dict, group_name: str, week: int, event_lines: list):
+        # Get the data needed from my_schedule dict
+        lesson_nr = lesson["cours_nr"]
+        lesson_name = lesson["cours_name"]
+        lesson_type = lesson["cours_type"]
+        lesson_day = lesson["day_number"]
+        office = lesson["cours_office"]
+        teacher = lesson["teacher_name"]
+
+        # Get lesson's hash (UID)
+        lesson_id = get_lesson_id(group_name, week, lesson_day, lesson_nr, lesson_name, lesson_type, teacher)
+        
+        # Get dt_start and dt_end, then convert into a proper form
+        dt_start, dt_end = self._get_lesson_date_and_time(week, lesson_day, lesson_nr)
+        dt_start, dt_end = self._convert_to_ics_datetime(dt_start, dt_end)
+
+        # Generate a summary
+        summary = f"{lesson_name} | {lesson_type}"
+        _safe_summary = self._escape_ics_value(summary)
+        
+        # Get safe location
+        location = office or "Uknown"
+        _safe_location = self._escape_ics_value(location)
+
+        # Generate a description
+        description_lines = [
+            f"Lesson {lesson_nr}",
+            f"Type: {lesson_type}",
+            f"Office: {_safe_location}",
+            f"Teacher: {teacher}"
+        ]
+        _safe_description = self._escape_ics_value("\n".join(description_lines))
+
+        # Generate ics data
+        lesson_lines = [
+            "BEGIN:VEVENT",
+            f"UID:{lesson_id}@usarb-schedule.local",
+            f"DTSTART:{dt_start}",
+            f"DTEND:{dt_end}",
+            f"SUMMARY:{_safe_summary}",
+            f"DESCRIPTION:{_safe_description}",
+            f"LOCATION:{_safe_location}",
+            f"END:VEVENT",
+        ]
+        
+        # Add event/lesson to the ics data
+        event_lines.extend(lesson_lines)
+
+        # Debug
+        if self.debug:
+            print(f"\n\nDEBUG: ICS Lesson Lines: {lesson_lines}")
+    
     # This function won't be used in the main process, but it's here for testing purposes
     def fetch_events(self, my_calendar: caldav.Calendar | None = None) -> list[caldav.Event]:
         """Fetching the events from the calendar
