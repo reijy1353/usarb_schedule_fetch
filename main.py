@@ -8,7 +8,7 @@ import caldav
 from caldav.davclient import get_davclient
 from caldav.lib.error import NotFoundError
 
-from data_parser import get_raw_schedule_data, get_lesson_id
+from data_parser import get_raw_schedule_data, get_lesson_id, get_weekday_number
 
 
 # Load .env
@@ -34,7 +34,9 @@ class CalendarSchedule:
         self.password = ICLOUD_PASSWORD
         self.calendar_name = CALENDAR_NAME
         self.group_name = GROUP_NAME
-        self.debug: str = False
+        self.debug: bool = False
+        self._client = None
+        self._principal = None
         
     def connect(self) -> caldav.Principal:
         """Connecting to the calendar
@@ -42,28 +44,31 @@ class CalendarSchedule:
         Returns:
             my_principal: Your principal
         """
-        with get_davclient(
+        # Reuse existing connection if available
+        if self._principal is not None:
+            return self._principal
+
+        self._client = get_davclient(
             username=self.username,
             password=self.password,
             url=self.caldav_url,
-        ) as client:
-            # Try/Except block for receiving my_principal from calDAV
-            try:
-                my_principal = client.principal()
-            except Exception as e:
-                print(f"There's a problem making a connection: {e}")
-            finally:
-                # Debug
-                if self.debug:
-                    print(f"\n\nDEBUG: type {type(my_principal)}")
-                    print(f"\n\nDEBUG: my_principal: {my_principal}")
-                
-                # User info
-                print(f"✅ Succesfully connected to the calendar.")
+        )
 
-                # Returning client.principal() if everything's fine
-                return my_principal
-            
+        try:
+            # Get principal from client
+            self._principal = self._client.principal()
+            print(f"✅ Successfully connected to the calendar.")
+
+            # Debug
+            if self.debug:
+                print(f"\n\nDEBUG: type {type(self._principal)}")
+                print(f"\n\nDEBUG: my_principal: {self._principal}")
+
+            return self._principal
+        except Exception as e:
+            print(f"There's a problem making a connection: {e}")
+            raise
+
     def _get_lesson_time(self, lesson_nr: int):
         """Get lesson start and end time by lesson_nr"""
         # Coming a date with first lesson's start time
@@ -89,7 +94,10 @@ class CalendarSchedule:
         days_difference = (today - FIRST_DAY).days
         
         # Calculate week number
-        week_number = (days_difference // 7) + 1
+        if get_weekday_number() == 6:
+            week_number = (days_difference // 7) + 2
+        else:
+            week_number = (days_difference // 7) + 1
 
         # Debug
         if self.debug:
@@ -311,9 +319,12 @@ class CalendarSchedule:
         # Get the properly formatted ics content
         content = "\r\n".join(event_lines)
 
-        # Save the event
-        saved_event = my_calendar.save_event(content.encode("utf-8"))
-        print("✅ Event/Events succesfully created.")
+        # Try to save the event
+        try:
+            saved_event = my_calendar.save_event(content.encode("utf-8"))
+            print("✅ Event/Events succesfully created.")
+        except Exception as e:
+            print(f"There was a problem saving the event/events: {e}")
 
         # Debug
         if self.debug:

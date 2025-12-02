@@ -2,8 +2,13 @@ import hashlib
 import json
 from collections import defaultdict
 from typing import Any
+from datetime import datetime
 
 from raw_schedule_data_fetch import get_raw_schedule_data
+
+def get_weekday_number() -> int:
+    """Get today's weekday number"""
+    return datetime.today().weekday()
 
 def get_lesson_id(group_name: str, week: int, lesson_day: int, lesson_nr: int, lesson_name: str, lesson_type: str, teacher: str, debug: bool = False):
     f"""Returning a 32 character hash created using MD5 and a string from the given args

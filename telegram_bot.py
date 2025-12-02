@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 from telegram import ForceReply, Update
 from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters
 
-from main import CalendarSchedule
+from main import CalendarSchedule, get_weekday_number
 
 # Enable logging
 logging.basicConfig(
@@ -27,12 +27,13 @@ class TelegramBot:
     def __init__(self, app: CalendarSchedule) -> None:
         self.token = TELEGRAM_BOT_TOKEN
         self.app = app
+        self.weekday: int = get_weekday_number()
 
     async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Send a message when the command /start is issued."""
         user = update.effective_user
         await update.message.reply_html(
-            rf"Hi {user.mention_html()}!\nFeel free to type /help for help of course!",
+            f"Hi {user.mention_html()}!\nFeel free to type /help for help of course!",
         )
 
     async def help_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -40,7 +41,7 @@ class TelegramBot:
         await update.message.reply_text("/sync - will sync your calendar properly")
 
     async def sync(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Echo the user message."""
+        """Sync the schedule to the calendar"""
         await update.message.reply_text("🔵 Sync in process...")
         self.app.sync_schedule()
         await update.message.reply_text("✅ Succesfully synced!")
