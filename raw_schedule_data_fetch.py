@@ -1,34 +1,46 @@
 import requests
 from bs4 import BeautifulSoup
 
+from usarby.settings import MAIN_URL
+
 
 # Initialize the session
 session = requests.Session()
-
-# URL of the main page
-url_main = "https://orar.usarb.md"
-
 # Get the home page (for cookies + csrf)
-r = session.get(url_main)
+r = session.get(MAIN_URL)
 
 
-# Get the CSRF token
 def get_csrf():
+    """Get CSRF token from the main url"""
     soup: BeautifulSoup = BeautifulSoup(r.text, "html.parser")
     csrf: str = soup.find("meta", {"name": "csrf-token"})["content"]
     return csrf
 
 
-# Get the schedule
 def get_raw_schedule_data(your_group_name: str, semester: int = 1, university_week: int = 1, debug: bool = False):
+    """
+    Fetches raw lesson data for a specific group and time period.
+
+    Args:
+        your_group_name (str): The name of the student group.
+        semester (int, optional): The academic semester. Defaults to 1.
+        university_week (int, optional): The specific week number. Defaults to 1.
+        debug (bool, optional): If True, enables debug logging. Defaults to False.
+
+    Raises:
+        ValueError: If the response cannot be decoded as JSON.
+
+    Returns:
+        dict: A JSON-decoded dictionary containing lesson information.
+    """
     # Get CSRF token
     csrf = get_csrf()
 
     # Get the group ID by name
-    group_id = _get_groups_by_name(your_group_name, csrf)
+    group_id = _get_group_id_by_group_name(your_group_name, csrf)
     
     # Prepare POST data
-    data = {
+    schedule_payload = {
         "_csrf": csrf,
         "gr": group_id,
         "sem": semester,
@@ -39,25 +51,35 @@ def get_raw_schedule_data(your_group_name: str, semester: int = 1, university_we
     
     # Get lessons data
     try:
-        r_lessons = _get_lessons_data(data, debug=debug)
+        r_lessons = _get_lessons_data(schedule_payload, debug=debug)
         return r_lessons
     except Exception as e:
         # Raise error
         raise ValueError("Couldn't decode the JSON or find any data, check the input data.") from e
     
     
-# Get the user's group ID by name
-def _get_groups_by_name(group_name: str, csrf: str, debug: bool = False):
+def _get_group_id_by_group_name(group_name: str, csrf: str, debug: bool = False) -> str | None:
+    r"""Get group ID by User's group name
+
+    Args:
+        group_name (str): Group name (e.g. IT11Z)
+        csrf (str): CSRF Token
+        debug (bool, optional): Enable\\Disable debug. Defaults to False.
+
+    Returns:
+        str or None: Group (str) or None
+    """
+
     # Get URL
-    url_groups = f"{url_main}/api/getGroups"
+    url_groups = f"{MAIN_URL}/api/getGroups"
     
     # Prepare POST data
-    data = {
+    payload = {
         "_csrf": csrf,
     }
     
     # POST to get groups
-    r_groups = session.post(url_groups, data=data)
+    r_groups = session.post(url_groups, data=payload)
 
     # Debugging
     if debug:
@@ -74,12 +96,21 @@ def _get_groups_by_name(group_name: str, csrf: str, debug: bool = False):
 
 
 # Get the user's lessons
-def _get_lessons_data(data: dict, debug: bool = False):
+def _get_lessons_data(payload: dict, debug: bool = False):
+    """Get lessons data (payload) in json
+
+    Args:
+        payload (dict): Schedule payload
+        debug (bool, optional): Enable\\Disable debug. Defaults to False.
+
+    Returns:
+        r_lessons: lessons in json
+    """
     # Get URL
-    url_lessons = f"{url_main}/api/getlessons"
+    url_lessons = f"{MAIN_URL}/api/getlessons"
 
     # POST to get lessons
-    r_lessons = session.post(url_lessons, data=data)
+    r_lessons = session.post(url_lessons, data=payload)
 
     # Debugging
     if debug:
