@@ -64,7 +64,7 @@ def _get_group_id_by_group_name(group_name: str, csrf: str, debug: bool = False)
     Args:
         group_name (str): Group name (e.g. IT11Z)
         csrf (str): CSRF Token
-        debug (bool, optional): Enable\\Disable debug. Defaults to False.
+        debug (bool, optional): Toggle debug. Defaults to False.
 
     Returns:
         str or None: Group (str) or None
@@ -101,7 +101,7 @@ def _get_lessons_data(payload: dict, debug: bool = False):
 
     Args:
         payload (dict): Schedule payload
-        debug (bool, optional): Enable\\Disable debug. Defaults to False.
+        debug (bool, optional): Toggle debug. Defaults to False.
 
     Returns:
         r_lessons: lessons in json
