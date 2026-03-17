@@ -60,3 +60,4 @@ CALENDAR_NAME = _str("CALENDAR_NAME", "USARBy Schedule")
 
 # --- User settings ---
 GROUP_NAME = _str("GROUP_NAME", "IT11Z")
+SCHEDULE_PATH = _str("SCHEDULE_PATH", str(_PROJECT_ROOT / "schedule_snapshots" / "schedule_snapshot.json"))

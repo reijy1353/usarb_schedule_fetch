@@ -4,7 +4,7 @@ from collections import defaultdict
 from typing import Any
 from datetime import datetime
 
-from raw_schedule_data_fetch import get_raw_schedule_data
+from dependencies import get_raw_schedule_data
 
 def get_weekday_number() -> int:
     """Get today's weekday number"""

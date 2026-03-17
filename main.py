@@ -8,7 +8,7 @@ import caldav
 from caldav.davclient import get_davclient
 from caldav.lib.error import NotFoundError
 
-from data_parser import get_raw_schedule_data, get_lesson_id, get_weekday_number
+from dependencies import get_raw_schedule_data, get_lesson_id, get_weekday_number
 
 
 # Load .env
