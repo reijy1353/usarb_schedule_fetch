@@ -14,6 +14,10 @@ from data_parser import get_raw_schedule_data, get_lesson_id, get_weekday_number
 # Load .env
 load_dotenv()
 
+# TODO Here I'll call more instances of TODO's also using 1, 2, 3 and pinpoint out what I think should be done
+# TODO 1. Create settings.py, can create a python library using .toml
+# TODO 2. Save events in .json first, and the parse that .json into CALDAV data
+
 # Get the variables/contanst from the .env file
 CALDAV_URL=os.getenv("CALDAV_URL")
 ICLOUD_USERNAME=os.getenv("ICLOUD_USERNAME")
@@ -21,6 +25,7 @@ ICLOUD_PASSWORD=os.getenv("ICLOUD_PASSWORD")
 CALENDAR_NAME=os.getenv("CALENDAR_NAME")
 GROUP_NAME=os.getenv("GROUP_NAME")
 
+# TODO 3. Is it possilbe to check the year and then get those (also add to setting.py)
 # Other constants
 FIRST_DAY = date(2025, 9, 1)
 FIRST_LESSON_TIME = time(8, 0)
