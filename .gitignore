@@ -16,3 +16,5 @@ schedule_snapshot.json
 
 # Package
 usarby.egg-info
+build
+.build
