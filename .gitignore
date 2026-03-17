@@ -13,3 +13,6 @@ __pycache__
 
 # Schedule snapshots
 schedule_snapshot.json
+
+# Package
+usarby.egg-info
