@@ -20,10 +20,10 @@ def _path(key: str, default: str) -> str:
 
     Args:
         key (str): .env variable
-        default (str): default statement
+        default (str): Default statement
 
     Returns:
-        str: proper path
+        str: Proper path
     """
     value = os.getenv(key, default).strip()
     if not value:
@@ -39,10 +39,10 @@ def _str(key: str, default: str) -> str:
 
     Args:
         key (str): .env variable
-        default (str): default statement
+        default (str): Default statement
 
     Returns:
-        str: a value from .env or if non-existent the default
+        str: A value from .env or if non-existent the default
     """
     return os.getenv(key, default).strip() or default
 
