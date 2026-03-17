@@ -49,7 +49,7 @@ def _str(key: str, default: str) -> str:
 
 # --- URLS ---
 CALDAV_URL = _str("CALDAV_URL", "https://caldav.icloud.com")
-MAIN_URL = _str("https://orar.usarb.md")
+MAIN_URL = _str("MAIN_URL", "https://orar.usarb.md")
 
 # --- ICloud ---
 ICLOUD_USERNAME = _str("ICLOUD_USERNAME", "user@icloud.com")
