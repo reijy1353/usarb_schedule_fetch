@@ -336,7 +336,15 @@ class CalendarSchedule:
             lesson_day, office, teacher = self.get_lesson_variables(lesson)
 
         # Get lesson's hash (UID)
-        lesson_id = get_lesson_id(group_name, week, lesson_day, lesson_nr, lesson_name, lesson_type, teacher)
+        lesson_id = get_lesson_id(
+            group_name, 
+            week, 
+            lesson_day, 
+            lesson_nr, 
+            lesson_name, 
+            lesson_type, 
+            teacher
+        )
         
         # Get dt_start and dt_end, then convert into a proper form
         dt_start, dt_end = self._get_lesson_date_and_time(week, lesson_day, lesson_nr)
