@@ -8,7 +8,7 @@ import caldav
 from caldav.davclient import get_davclient
 from caldav.lib.error import NotFoundError
 
-from dependencies import get_raw_schedule_data, get_lesson_id, get_weekday_number
+from dependencies import get_raw_schedule_data, get_lesson_id, get_weekday_number, save_schedule_to_json
 
 
 # Load .env
@@ -16,7 +16,9 @@ load_dotenv()
 
 # TODO Here I'll call more instances of TODO's also using 1, 2, 3 and pinpoint out what I think should be done
 # TODO 1. Create settings.py, can create a python library using .toml
-# TODO 2. Save events in .json first, and the parse that .json into CALDAV data
+# TODO 2.1. Save events to JSON file (2 of them if possible, like 'before' and 'after' (old and new))
+# TODO 2.2. Parse JSON file into CALDAV data
+
 
 # Get the variables/contanst from the .env file
 CALDAV_URL=os.getenv("CALDAV_URL")
@@ -32,14 +34,23 @@ FIRST_LESSON_TIME = time(8, 0)
 
 
 class CalendarSchedule:
-    def __init__(self) -> None:
+    def __init__(self, fetcher, parser) -> None:
         "Setting up the environmental variables"
+        # Environmental variables
         self.caldav_url = CALDAV_URL
         self.username = ICLOUD_USERNAME
         self.password = ICLOUD_PASSWORD
         self.calendar_name = CALENDAR_NAME
         self.group_name = GROUP_NAME
+
+        # Dependencies
+        self.fetcher = fetcher
+        self.parser = parser
+
+        # Debug
         self.debug: bool = False
+
+        # Local variables
         self._client = None
         self._principal = None
         
@@ -115,7 +126,7 @@ class CalendarSchedule:
         self,
         week: int | None = ...,
         postpone: int = ...,
-        mode: Literal["dates"] = ...,
+        mode: Literal["explicit"] = ...,
     ) -> tuple[date, date]: ...
 
     @overload
@@ -123,10 +134,10 @@ class CalendarSchedule:
         self,
         week: int | None = ...,
         postpone: int = ...,
-        mode: Literal["weeks"] = ...,
+        mode: Literal["numerical"] = ...,
     ) -> list[int]: ...
 
-    def _get_date_from_this_week_on(self, week: int | None = None, postpone: int = 3, mode: str = "dates"):
+    def _get_date_from_this_week_on(self, week: int | None = None, postpone: int = 3, mode: str = "explicit"):
         """Get a range of dates, from first day of the university week, to the 
         one calculated by formula week + postpone (e.g. week = 10, postpone = 3)
         returns the range from start of week 10, till then end of week 10 + 3 = 13.
@@ -136,19 +147,19 @@ class CalendarSchedule:
             postpone (int): How many weeks on you want to prolong your calendar. Defaults to 3.
 
         Returns:
-            mode ("dates"): a range of dates from the first day of `week` to the last day of `week + postpone`, OR
-            mode ("weeks"): a range of week numbers (week, week + postpone)
+            mode ("explicit"): a range of dates from the first day of 'week' to the last day of 'week + postpone', OR
+            mode ("numerical"): a range of week numbers (week, week + postpone)
         """
         # If no week is given, use "this" week by default
         if week is None:
             week = self._get_this_week()
             print(f"🚂 week set by default (week = {week}, postpone = {postpone})")
 
-        # for mode = "weeks" return the range of weeks
-        if mode == "weeks":
+        # for mode = "numerical" return the range of weeks
+        if mode == "numerical":
             # Debug
             if self.debug:
-                print(f"\n\nDEBUG: mode \"weeks\" active returns {list[int](range(week, week + postpone))}")
+                print(f"\n\nDEBUG: mode \"numerical\" active returns {list[int](range(week, week + postpone))}")
 
             return list[int](range(week, week + postpone))
 
@@ -161,15 +172,15 @@ class CalendarSchedule:
 
         # Debug
         if self.debug:
-            print(f"\n\nDEBUG: mode \"dates\" active:")
+            print(f"\n\nDEBUG: mode \"explicit\" active:")
             print(f"DEBUG: start_date = {start_date}")
             print(f"DEBUG: end_date = {end_date}")
         
         # Return (types vary by mode)
-        if mode == "dates":
+        if mode == "explicit":
             return start_date, end_date
         else:
-            raise ValueError("mode must be either 'dates' or 'weeks'")
+            raise ValueError("mode must be either 'explicit' or 'numerical'")
             
     def _get_lesson_date_and_time(self, week: int = 1, day: int = 1, lesson_nr: int = 1) -> Tuple[datetime, datetime]:
         """Return start and end date & time of a specific lesson
@@ -277,7 +288,7 @@ class CalendarSchedule:
 
         # If no weeks provided, get this week and the next 2
         if weeks is None:
-            weeks = self._get_date_from_this_week_on(postpone=3, mode="weeks",)
+            weeks = self._get_date_from_this_week_on(postpone=3, mode="numerical",)
 
             # Debug
             if self.debug:
@@ -311,8 +322,8 @@ class CalendarSchedule:
 
             # Loop for parsing every lesson from a university week
             for lesson in lessons:
-                # Save the lesson using the save_lesson function
-                self.save_lesson(lesson, group_name, week, event_lines)
+                # Save the lesson using the save_lesson_to_ics_payload function
+                self.save_lesson_to_ics_payload(lesson, group_name, week, event_lines)
             
         # Add the end lines to the ics content
         event_lines.extend(event_lines_end)
@@ -335,7 +346,7 @@ class CalendarSchedule:
         if self.debug:
             print(f"DEBUG: Saved event data: {saved_event}")
         
-    def save_lesson(self, lesson: dict, group_name: str, week: int, event_lines: list):
+    def save_lesson_to_ics_payload(self, lesson: dict, group_name: str, week: int, event_lines: list):
         # Get the data needed from my_schedule dict
         lesson_nr, lesson_name, lesson_type,\
             lesson_day, office, teacher = self.get_lesson_variables(lesson)
@@ -403,8 +414,7 @@ class CalendarSchedule:
 
         return lesson_nr, lesson_name, lesson_type, lesson_day, office, teacher
 
-    # This function won't be used in the main process, but it's here for testing purposes
-    def fetch_events(self, my_calendar: caldav.Calendar | None = None) -> list[caldav.Event]:
+    def _fetch_events(self, my_calendar: caldav.Calendar | None = None) -> list[caldav.Event]:
         """Fetching the events from the calendar
         
         Returns:
@@ -437,9 +447,9 @@ if __name__ == "__main__":
     app = CalendarSchedule()
     app.debug = False
 
-    # app.get_date_from_this_week_on(mode="dates")
+    # app.get_date_from_this_week_on(mode="explicit")
     # app.get_or_create_calendar()
-    # my_events = app.fetch_events()
+    # my_events = app._fetch_events()
     # print(my_events[0].data)
     
     # my_calendar = app.get_or_create_calendar()
