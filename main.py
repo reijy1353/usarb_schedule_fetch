@@ -9,7 +9,7 @@ from caldav.davclient import get_davclient
 from caldav.lib.error import NotFoundError
 
 from dependencies import get_raw_schedule_data, get_lesson_id, get_weekday_number, save_schedule_to_json
-
+# from dependencies import raw_schedule_fetch, data_parser
 
 # Load .env
 load_dotenv()
@@ -43,9 +43,9 @@ class CalendarSchedule:
         self.calendar_name = CALENDAR_NAME
         self.group_name = GROUP_NAME
 
-        # Dependencies
-        self.fetcher = fetcher
-        self.parser = parser
+        # # Dependencies
+        # self.fetcher = fetcher
+        # self.parser = parser
 
         # Debug
         self.debug: bool = False
