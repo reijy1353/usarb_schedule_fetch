@@ -231,24 +231,101 @@ class CalendarSchedule:
         value = value.replace('\n', '\\n')
         return value
     
-    # Feature in later update
-    # e.g. where we need to make a difference between two schedules
-    def get_data_from_snapshot(self, snapshot_directory: str = "schedule_snapshot.json"):
-        """Fetching the data from the last schedule snapshot"""
-        # Open the json file and load the snapshot into a variable
-        try:
-            with open(snapshot_directory, "r") as fp:
-                schedule_snapshot = json.load(fp)
-        except FileNotFoundError:
-            print(f"The file \"{snapshot_directory}\" doesn't exist.")
-            return None
+    def _save_lesson_to_ics_payload(self, lesson: dict, group_name: str, week: int, event_lines: list):
+        # Get the data needed from my_schedule dict
+        lesson_nr, lesson_name, lesson_type,\
+            lesson_day, office, teacher = self._get_lesson_variables(lesson)
+
+        # Get lesson's hash (UID)
+        lesson_id = get_lesson_id(
+            group_name, 
+            week, 
+            lesson_day, 
+            lesson_nr, 
+            lesson_name, 
+            lesson_type, 
+            teacher
+        )
+        
+        # Get dt_start and dt_end, then convert into a proper form
+        dt_start, dt_end = self._get_lesson_date_and_time(week, lesson_day, lesson_nr)
+        dt_start, dt_end = self._convert_to_ics_datetime(dt_start, dt_end)
+
+        # Generate a summary
+        summary = f"{lesson_name} | {lesson_type}"
+        _safe_summary = self._escape_ics_value(summary)
+        
+        # Get safe location
+        location = office or "Uknown"
+        _safe_location = self._escape_ics_value(location)
+
+        # Generate a description
+        description_lines = [
+            f"Lesson {lesson_nr}",
+            f"Type: {lesson_type}",
+            f"Office: {_safe_location}",
+            f"Teacher: {teacher}"
+        ]
+        _safe_description = self._escape_ics_value("\n".join(description_lines))
+
+        # Generate ics data
+        lesson_lines = [
+            "BEGIN:VEVENT",
+            f"UID:{lesson_id}@usarb-schedule.local",
+            f"DTSTART:{dt_start}",
+            f"DTEND:{dt_end}",
+            f"SUMMARY:{_safe_summary}",
+            f"DESCRIPTION:{_safe_description}",
+            f"LOCATION:{_safe_location}",
+            f"END:VEVENT",
+        ]
+        
+        # Add event/lesson to the ics data
+        event_lines.extend(lesson_lines)
 
         # Debug
         if self.debug:
-            print(f"\n\nDEBUG: data from json: {schedule_snapshot}")
-        
-        return schedule_snapshot
+            print(f"\n\nDEBUG: ICS Lesson Lines: {lesson_lines}")
     
+    def _get_lesson_variables(self, lesson: dict):
+        """Get all the variables needed from a lesson"""
+
+        lesson_nr = lesson["cours_nr"]
+        lesson_name = lesson["cours_name"]
+        lesson_type = lesson["cours_type"]
+        lesson_day = lesson["day_number"]
+        office = lesson["cours_office"]
+        teacher = lesson["teacher_name"]
+
+        return lesson_nr, lesson_name, lesson_type, lesson_day, office, teacher
+
+    def _fetch_events(self, my_calendar: caldav.Calendar | None = None) -> list[caldav.Event]:
+        """Fetching the events from the calendar
+        
+        Returns:
+            my_events: Your events
+        """
+        # Get the default my_calendar if None
+        if my_calendar is None:
+            my_calendar = self.get_or_create_calendar()
+            
+        # Get start and end date (for searching events)
+        start_date, end_date = self._get_date_from_this_week_on()
+
+        # Search for events
+        my_events = my_calendar.search(
+            event=True,
+            start=start_date,
+            end=end_date,
+            expand=True
+        )
+
+        # Debug
+        if self.debug:
+            print(f"\n\nDEBUG: my_events: {my_events}")
+
+        return my_events
+
     def get_or_create_calendar(self) -> caldav.Calendar:
         """Get the calendar used for schedule, if none exists, it'll create a new one
         naming it by calendar_name from .env
@@ -322,8 +399,8 @@ class CalendarSchedule:
 
             # Loop for parsing every lesson from a university week
             for lesson in lessons:
-                # Save the lesson using the save_lesson_to_ics_payload function
-                self.save_lesson_to_ics_payload(lesson, group_name, week, event_lines)
+                # Save the lesson using the _save_lesson_to_ics_payload function
+                self._save_lesson_to_ics_payload(lesson, group_name, week, event_lines)
             
         # Add the end lines to the ics content
         event_lines.extend(event_lines_end)
@@ -345,102 +422,24 @@ class CalendarSchedule:
         # Debug
         if self.debug:
             print(f"DEBUG: Saved event data: {saved_event}")
-        
-    def save_lesson_to_ics_payload(self, lesson: dict, group_name: str, week: int, event_lines: list):
-        # Get the data needed from my_schedule dict
-        lesson_nr, lesson_name, lesson_type,\
-            lesson_day, office, teacher = self.get_lesson_variables(lesson)
 
-        # Get lesson's hash (UID)
-        lesson_id = get_lesson_id(
-            group_name, 
-            week, 
-            lesson_day, 
-            lesson_nr, 
-            lesson_name, 
-            lesson_type, 
-            teacher
-        )
-        
-        # Get dt_start and dt_end, then convert into a proper form
-        dt_start, dt_end = self._get_lesson_date_and_time(week, lesson_day, lesson_nr)
-        dt_start, dt_end = self._convert_to_ics_datetime(dt_start, dt_end)
-
-        # Generate a summary
-        summary = f"{lesson_name} | {lesson_type}"
-        _safe_summary = self._escape_ics_value(summary)
-        
-        # Get safe location
-        location = office or "Uknown"
-        _safe_location = self._escape_ics_value(location)
-
-        # Generate a description
-        description_lines = [
-            f"Lesson {lesson_nr}",
-            f"Type: {lesson_type}",
-            f"Office: {_safe_location}",
-            f"Teacher: {teacher}"
-        ]
-        _safe_description = self._escape_ics_value("\n".join(description_lines))
-
-        # Generate ics data
-        lesson_lines = [
-            "BEGIN:VEVENT",
-            f"UID:{lesson_id}@usarb-schedule.local",
-            f"DTSTART:{dt_start}",
-            f"DTEND:{dt_end}",
-            f"SUMMARY:{_safe_summary}",
-            f"DESCRIPTION:{_safe_description}",
-            f"LOCATION:{_safe_location}",
-            f"END:VEVENT",
-        ]
-        
-        # Add event/lesson to the ics data
-        event_lines.extend(lesson_lines)
+    # Feature in later update
+    # e.g. where we need to make a difference between two schedules
+    def get_data_from_snapshot(self, snapshot_directory: str = "schedule_snapshot.json"):
+        """Fetching the data from the last schedule snapshot"""
+        # Open the json file and load the snapshot into a variable
+        try:
+            with open(snapshot_directory, "r") as fp:
+                schedule_snapshot = json.load(fp)
+        except FileNotFoundError:
+            print(f"The file \"{snapshot_directory}\" doesn't exist.")
+            return None
 
         # Debug
         if self.debug:
-            print(f"\n\nDEBUG: ICS Lesson Lines: {lesson_lines}")
-    
-    def get_lesson_variables(self, lesson: dict):
-        """Get all the variables needed from a lesson"""
-
-        lesson_nr = lesson["cours_nr"]
-        lesson_name = lesson["cours_name"]
-        lesson_type = lesson["cours_type"]
-        lesson_day = lesson["day_number"]
-        office = lesson["cours_office"]
-        teacher = lesson["teacher_name"]
-
-        return lesson_nr, lesson_name, lesson_type, lesson_day, office, teacher
-
-    def _fetch_events(self, my_calendar: caldav.Calendar | None = None) -> list[caldav.Event]:
-        """Fetching the events from the calendar
+            print(f"\n\nDEBUG: data from json: {schedule_snapshot}")
         
-        Returns:
-            my_events: Your events
-        """
-        # Get the default my_calendar if None
-        if my_calendar is None:
-            my_calendar = self.get_or_create_calendar()
-            
-        # Get start and end date (for searching events)
-        start_date, end_date = self._get_date_from_this_week_on()
-
-        # Search for events
-        my_events = my_calendar.search(
-            event=True,
-            start=start_date,
-            end=end_date,
-            expand=True
-        )
-
-        # Debug
-        if self.debug:
-            print(f"\n\nDEBUG: my_events: {my_events}")
-
-        return my_events
-
+        return schedule_snapshot
 
 # Local testing
 if __name__ == "__main__":
