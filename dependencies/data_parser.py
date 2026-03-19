@@ -3,12 +3,16 @@ import json
 from collections import defaultdict
 from typing import Any
 from datetime import datetime
+from pathlib import Path
 
 from dependencies import get_raw_schedule_data
+from usarby.settings import SCHEDULE_PATH
+
 
 def get_weekday_number() -> int:
     """Get today's weekday number"""
     return datetime.today().weekday()
+
 
 def get_lesson_id(group_name: str, week: int, lesson_day: int, lesson_nr: int, lesson_name: str, lesson_type: str, teacher: str, debug: bool = False):
     f"""Returning a 32 character hash created using MD5 and a string from the given args
@@ -35,6 +39,8 @@ def get_lesson_id(group_name: str, week: int, lesson_day: int, lesson_nr: int, l
     
     return hash
 
+
+# DEPRECATED
 def get_schedule_for_snapshot(group_name: str, *weeks: int, debug: bool = False):
     """All the specifications/keywords we need:
         cours_nr -> lesson number (1 - 8)
@@ -122,6 +128,7 @@ def get_schedule_for_snapshot(group_name: str, *weeks: int, debug: bool = False)
     return schedule
                     
 
+# DEPRECATED
 def save_schedule_to_json(group_name: str, *weeks: int, debug: bool = False):
     """Saving the schedule retrieved from get_schedule() function to schedule_snapshot.json
         (overwriting it it already exists)
@@ -134,8 +141,12 @@ def save_schedule_to_json(group_name: str, *weeks: int, debug: bool = False):
     # Get schedule
     schedule = get_schedule_for_snapshot(group_name, *weeks)
 
+    # Create directory if None exists
+    output_file = Path(SCHEDULE_PATH)
+    output_file.parent.mkdir(parents=True, exist_ok=True)
+
     # Open a default file ("schedule_snapshot.json") and write the schedule
-    with open("schedule_snapshot.json", "w") as f:
+    with open(SCHEDULE_PATH, "w") as f:
         json.dump(schedule, f, indent=4)
         
 

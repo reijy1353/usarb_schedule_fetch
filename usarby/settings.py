@@ -33,7 +33,6 @@ def _path(key: str, default: str) -> str:
         p = _PROJECT_ROOT / p
     return str(p.resolve())
 
-
 def _str(key: str, default: str) -> str:
     """Unpack a string (try to get value from .env)
 
@@ -60,4 +59,4 @@ CALENDAR_NAME = _str("CALENDAR_NAME", "USARBy Schedule")
 
 # --- User settings ---
 GROUP_NAME = _str("GROUP_NAME", "IT11Z")
-SCHEDULE_PATH = _str("SCHEDULE_PATH", str(_PROJECT_ROOT / "schedule_snapshots" / "schedule_snapshot.json"))
+SCHEDULE_PATH = _path("SCHEDULE_PATH", str(_PROJECT_ROOT / "schedule_snapshots" / "schedule_snapshot.json"))

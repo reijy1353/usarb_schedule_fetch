@@ -2,14 +2,23 @@ import os
 import json
 from re import S
 from typing import Any, Literal, Tuple, overload
+from pathlib import Path
+from collections import defaultdict
 from dotenv import load_dotenv
 from datetime import datetime, date, time, timedelta, timezone
 import caldav
 from caldav.davclient import get_davclient
 from caldav.lib.error import NotFoundError
 
-from dependencies import get_raw_schedule_data, get_lesson_id, get_weekday_number, save_schedule_to_json
-# from dependencies import raw_schedule_fetch, data_parser
+from dependencies import get_raw_schedule_data, get_lesson_id, get_weekday_number
+from usarby.settings import (
+    CALDAV_URL,
+    ICLOUD_USERNAME,
+    ICLOUD_PASSWORD,
+    CALENDAR_NAME,
+    GROUP_NAME,
+    SCHEDULE_PATH
+)
 
 # Load .env
 load_dotenv()
@@ -18,23 +27,14 @@ load_dotenv()
 # TODO 1. Create settings.py, can create a python library using .toml
 # TODO 2.1. Save events to JSON file (2 of them if possible, like 'before' and 'after' (old and new))
 # TODO 2.2. Parse JSON file into CALDAV data
-
-
-# Get the variables/contanst from the .env file
-CALDAV_URL=os.getenv("CALDAV_URL")
-ICLOUD_USERNAME=os.getenv("ICLOUD_USERNAME")
-ICLOUD_PASSWORD=os.getenv("ICLOUD_PASSWORD")
-CALENDAR_NAME=os.getenv("CALENDAR_NAME")
-GROUP_NAME=os.getenv("GROUP_NAME")
-
 # TODO 3. Is it possilbe to check the year and then get those (also add to setting.py)
-# Other constants
+# Constants (check TODO 3)
 FIRST_DAY = date(2025, 9, 1)
 FIRST_LESSON_TIME = time(8, 0)
 
 
 class CalendarSchedule:
-    def __init__(self, fetcher, parser) -> None:
+    def __init__(self) -> None:
         "Setting up the environmental variables"
         # Environmental variables
         self.caldav_url = CALDAV_URL
@@ -438,8 +438,92 @@ class CalendarSchedule:
         # Debug
         if self.debug:
             print(f"\n\nDEBUG: data from json: {schedule_snapshot}")
-        
+
         return schedule_snapshot
+
+    def _get_schedule_snapshot(self, group_name: str | None = None, weeks: list[int] | None = None) -> defaultdict:
+        """Get schedule snapshot (dict)
+
+        Args:
+            group_name (str | None, optional): User's university group. Defaults to None.
+            weeks (list[int] | None, optional): Weeks you want to include. Defaults to None.
+
+        Returns:
+            defaultdict: A dictionary that includes the schedule (the snapshot)
+        """
+
+        # If no group name, set default
+        if group_name is None:
+            group_name = self.group_name
+
+        # If no weeks passed, set default
+        if weeks is None:
+            weeks = self._get_date_from_this_week_on(mode="numerical")
+
+        # Check if weeks isn't a list, and make it one
+        if isinstance(weeks, int):
+            weeks = [weeks]
+
+        # Schedule dict, here we'll save all the lessons
+        schedule = defaultdict[Any, defaultdict[Any, dict]](lambda: defaultdict[Any, dict](dict))
+
+        # Parse through the weeks
+        for week in weeks:
+
+            # Get lessons for the week (get raw_schedule first)
+            raw_schedule = get_raw_schedule_data(group_name, university_week=week)
+            lessons = raw_schedule.get("week") or []
+
+            # Parse through all the lessons
+            for lesson in lessons:
+                # Get the data needed from my_schedule dict
+                lesson_nr, lesson_name, lesson_type,\
+                    lesson_day, office, teacher = self._get_lesson_variables(lesson)
+
+                # Get lesson's hash (UID)
+                lesson_id = get_lesson_id(
+                    group_name, 
+                    week, 
+                    lesson_day, 
+                    lesson_nr, 
+                    lesson_name, 
+                    lesson_type, 
+                    teacher,
+                )
+
+                # Save lesson data to schedule
+                entry = schedule[week][lesson_id]
+                entry.update({
+                    "lessons_day": lesson_day,
+                    "lesson_nr": lesson_nr,
+                    "lesson_name": lesson_name,
+                    "lesson_type": lesson_type,
+                    "office": office or "unkown",
+                    "teacher": teacher,
+                })
+        
+        return schedule
+            
+    def save_schedule_to_json(self, group_name: str | None = None, weeks: list[int] | None = None) -> None:
+        """Saving the schedule retrieved from get_schedule() function to schedule_snapshot.json
+            (overwriting it it already exists)
+
+        Args:
+            group_name (str): your group name
+            debug (bool, optional): debug. Defaults to False.
+        """
+        
+        # Get schedule
+        schedule = self._get_schedule_snapshot(group_name, weeks)
+
+        # Create directory if None exists
+        output_file = Path(SCHEDULE_PATH)
+        output_file.parent.mkdir(parents=True, exist_ok=True)
+
+        # Open a default file ("schedule_snapshot.json") and write the schedule
+        with open(SCHEDULE_PATH, "w") as f:
+            json.dump(schedule, f, indent=2)
+
 
 # Local testing
 if __name__ == "__main__":
@@ -463,4 +547,6 @@ if __name__ == "__main__":
     
     # print(app._get_lesson_date_and_time(10, 1, 2))
 
-    app.sync_schedule()
+    # app.sync_schedule()
+
+    app.save_schedule_to_json()
