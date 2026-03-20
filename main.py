@@ -1,6 +1,7 @@
 import os
 import json
 from re import S
+from tkinter import N
 from typing import Any, Literal, Tuple, overload
 from pathlib import Path
 from collections import defaultdict
@@ -9,6 +10,7 @@ from datetime import datetime, date, time, timedelta, timezone
 import caldav
 from caldav.davclient import get_davclient
 from caldav.lib.error import NotFoundError
+from warnings import deprecated
 
 from dependencies import get_raw_schedule_data, get_lesson_id, get_weekday_number
 from usarby.settings import (
@@ -23,12 +25,9 @@ from usarby.settings import (
 # Load .env
 load_dotenv()
 
-# TODO Here I'll call more instances of TODO's also using 1, 2, 3 and pinpoint out what I think should be done
-# TODO 1. Create settings.py, can create a python library using .toml
-# TODO 2.1. Save events to JSON file (2 of them if possible, like 'before' and 'after' (old and new))
-# TODO 2.2. Parse JSON file into CALDAV data
-# TODO 3. Is it possilbe to check the year and then get those (also add to setting.py)
-# Constants (check TODO 3)
+# TODO Fix those "print" states in the function. 
+# TODO Is it possilbe to check the year and then get those (also add to setting.py)
+# Constants
 FIRST_DAY = date(2025, 9, 1)
 FIRST_LESSON_TIME = time(8, 0)
 
@@ -60,6 +59,11 @@ class CalendarSchedule:
         Returns:
             my_principal: Your principal
         """
+        # Print states
+        print("\n" + "-" * 50)
+        print("CONNECT")
+        print("-" * 50)
+
         # Reuse existing connection if available
         if self._principal is not None:
             return self._principal
@@ -73,7 +77,7 @@ class CalendarSchedule:
         try:
             # Get principal from client
             self._principal = self._client.principal()
-            print(f"✅ Successfully connected to the calendar.")
+            print(f"[-] Successfully connected to the calendar.")
 
             # Debug
             if self.debug:
@@ -153,7 +157,7 @@ class CalendarSchedule:
         # If no week is given, use "this" week by default
         if week is None:
             week = self._get_this_week()
-            print(f"🚂 week set by default (week = {week}, postpone = {postpone})")
+            print(f"[-] week set by default (week = {week}, postpone = {postpone})")
 
         # for mode = "numerical" return the range of weeks
         if mode == "numerical":
@@ -231,21 +235,37 @@ class CalendarSchedule:
         value = value.replace('\n', '\\n')
         return value
     
-    def _save_lesson_to_ics_payload(self, lesson: dict, group_name: str, week: int, event_lines: list):
-        # Get the data needed from my_schedule dict
-        lesson_nr, lesson_name, lesson_type,\
-            lesson_day, office, teacher = self._get_lesson_variables(lesson)
+    def _save_lesson_to_ics_payload(
+        self,
+        lesson: dict,
+        group_name: str,
+        week: int,
+        event_lines: list,
+        lesson_id: str | None = None,
+        mode: Literal["raw", "json"] = "raw",
+    ) -> None:
 
-        # Get lesson's hash (UID)
-        lesson_id = get_lesson_id(
-            group_name, 
-            week, 
-            lesson_day, 
-            lesson_nr, 
-            lesson_name, 
-            lesson_type, 
-            teacher
-        )
+        # Get variables for raw schedule
+        if mode == "raw":
+            # Get the data needed from my_schedule dict
+            lesson_nr, lesson_name, lesson_type,\
+                lesson_day, office, teacher = self._unpack_raw(lesson)
+
+            # Get lesson's hash (UID)
+            lesson_id = get_lesson_id(
+                group_name, 
+                week, 
+                lesson_day, 
+                lesson_nr, 
+                lesson_name, 
+                lesson_type, 
+                teacher
+            )
+
+        # Get variables for json schedule
+        if mode == "json":
+            lesson_nr, lesson_name, lesson_type,\
+                lesson_day, office, teacher = self._unpack_json(lesson)
         
         # Get dt_start and dt_end, then convert into a proper form
         dt_start, dt_end = self._get_lesson_date_and_time(week, lesson_day, lesson_nr)
@@ -286,7 +306,32 @@ class CalendarSchedule:
         # Debug
         if self.debug:
             print(f"\n\nDEBUG: ICS Lesson Lines: {lesson_lines}")
-    
+
+    def _unpack_raw(self, lesson: dict) -> tuple[int, str, str, int, int | str, str]:
+        """Get all the variables needed from a raw schedule"""
+
+        lesson_nr = lesson["cours_nr"]
+        lesson_name = lesson["cours_name"]
+        lesson_type = lesson["cours_type"]
+        lesson_day = lesson["day_number"]
+        office = lesson["cours_office"]
+        teacher = lesson["teacher_name"]
+
+        return lesson_nr, lesson_name, lesson_type, lesson_day, office, teacher
+
+    def _unpack_json(self, lesson: dict) -> tuple[str, int, str, str, int, int | str, str]:
+        """Get all the variables needed from a raw json (schedule file)"""
+
+        lesson_nr = lesson["lesson_nr"]
+        lesson_name = lesson["lesson_name"]
+        lesson_type = lesson["lesson_type"]
+        lesson_day = lesson["lesson_day"]
+        office = lesson["office"]
+        teacher = lesson["teacher"]
+
+        return lesson_nr, lesson_name, lesson_type, lesson_day, office, teacher
+
+    @deprecated("_unpack_raw is deprecated, use _unpack_raw or _unpack_json")
     def _get_lesson_variables(self, lesson: dict):
         """Get all the variables needed from a lesson"""
 
@@ -299,6 +344,7 @@ class CalendarSchedule:
 
         return lesson_nr, lesson_name, lesson_type, lesson_day, office, teacher
 
+    @deprecated("won't be used")
     def _fetch_events(self, my_calendar: caldav.Calendar | None = None) -> list[caldav.Event]:
         """Fetching the events from the calendar
         
@@ -333,6 +379,12 @@ class CalendarSchedule:
         Returns:
             my_calendar: Your calendar
         """
+
+        # Print states
+        print("\n" + "-" * 50)
+        print("GET OR CREATE CALENDAR")
+        print("-" * 50)
+
         # Get my_principal (connect)
         my_principal = self.connect()
 
@@ -340,9 +392,9 @@ class CalendarSchedule:
         try:
             my_calendar = my_principal.calendar(name=self.calendar_name)
         except NotFoundError:
-            print(f"You don't have a calendar, creating one... (name = {self.calendar_name})")
+            print(f"[-] You don't have a calendar, creating one... (name = {self.calendar_name})")
             my_calendar = my_principal.make_calendar(name=self.calendar_name)
-            print("Calendar succefully created!")
+            print("[-] Calendar succefully created!")
             
         # Debug
         if self.debug:
@@ -351,6 +403,7 @@ class CalendarSchedule:
     
         return my_calendar
 
+    @deprecated("This function is deprecated, use sync_via_json()")
     def sync_schedule(self, group_name: str = None, weeks: list[int] = None):
         """Parsing the data from get_schedule(), adding it up to a ics data set and
         add to the calendar itself.
@@ -423,24 +476,6 @@ class CalendarSchedule:
         if self.debug:
             print(f"DEBUG: Saved event data: {saved_event}")
 
-    # Feature in later update
-    # e.g. where we need to make a difference between two schedules
-    def get_data_from_snapshot(self, snapshot_directory: str = "schedule_snapshot.json"):
-        """Fetching the data from the last schedule snapshot"""
-        # Open the json file and load the snapshot into a variable
-        try:
-            with open(snapshot_directory, "r") as fp:
-                schedule_snapshot = json.load(fp)
-        except FileNotFoundError:
-            print(f"The file \"{snapshot_directory}\" doesn't exist.")
-            return None
-
-        # Debug
-        if self.debug:
-            print(f"\n\nDEBUG: data from json: {schedule_snapshot}")
-
-        return schedule_snapshot
-
     def _get_schedule_snapshot(self, group_name: str | None = None, weeks: list[int] | None = None) -> defaultdict:
         """Get schedule snapshot (dict)
 
@@ -451,6 +486,11 @@ class CalendarSchedule:
         Returns:
             defaultdict: A dictionary that includes the schedule (the snapshot)
         """
+
+        # Print states
+        print("\n" + "-" * 50)
+        print("GET SCHEDULE SNAPSHOT")
+        print("-" * 50)
 
         # If no group name, set default
         if group_name is None:
@@ -474,11 +514,14 @@ class CalendarSchedule:
             raw_schedule = get_raw_schedule_data(group_name, university_week=week)
             lessons = raw_schedule.get("week") or []
 
+            # Print state
+            print(f"[-] Working on week {week}")
+
             # Parse through all the lessons
             for lesson in lessons:
                 # Get the data needed from my_schedule dict
                 lesson_nr, lesson_name, lesson_type,\
-                    lesson_day, office, teacher = self._get_lesson_variables(lesson)
+                    lesson_day, office, teacher = self._unpack_raw(lesson)
 
                 # Get lesson's hash (UID)
                 lesson_id = get_lesson_id(
@@ -494,14 +537,13 @@ class CalendarSchedule:
                 # Save lesson data to schedule
                 entry = schedule[week][lesson_id]
                 entry.update({
-                    "lessons_day": lesson_day,
+                    "lesson_day": lesson_day,
                     "lesson_nr": lesson_nr,
                     "lesson_name": lesson_name,
                     "lesson_type": lesson_type,
                     "office": office or "unkown",
                     "teacher": teacher,
                 })
-        
         return schedule
             
     def save_schedule_to_json(self, group_name: str | None = None, weeks: list[int] | None = None) -> None:
@@ -513,6 +555,11 @@ class CalendarSchedule:
             debug (bool, optional): debug. Defaults to False.
         """
         
+        # Print states
+        print("\n" + "-" * 50)
+        print("SAVE SCHEDULE TO JSON")
+        print("-" * 50)
+
         # Get schedule
         schedule = self._get_schedule_snapshot(group_name, weeks)
 
@@ -521,9 +568,106 @@ class CalendarSchedule:
         output_file.parent.mkdir(parents=True, exist_ok=True)
 
         # Open a default file ("schedule_snapshot.json") and write the schedule
-        with open(SCHEDULE_PATH, "w") as f:
-            json.dump(schedule, f, indent=2)
+        try:
+            with open(SCHEDULE_PATH, "w") as f:
+                json.dump(schedule, f, indent=2)
+        except Exception as e:
+            print(f"The file \"{SCHEDULE_PATH}\" coudldn't be created.")
+            return None
+        
+        # Print state
+        print(f"[-] Schedule saved to json in {SCHEDULE_PATH}")
 
+    def get_data_from_snapshot_to_ics(self):
+        """Fetching the data from the last schedule snapshot"""
+
+        # Print states
+        print("\n" + "-" * 50)
+        print("GET DATA FROM SNAPSHOT TO ICS PAYLOAD")
+        print("-" * 50)
+
+        # Open the json file and load the snapshot into a variable
+        try:
+            with open(SCHEDULE_PATH, "r") as fp:
+                schedule_snapshot: dict = json.load(fp)
+        except FileNotFoundError:
+            print(f"The file \"{SCHEDULE_PATH}\" doesn't exist.")
+            return None
+
+        # Define .ics code for the schedule calendar and make sure to create it every week
+        event_lines = [
+            "BEGIN:VCALENDAR",
+            "VERSION:2.0",
+            "PROID:-//USARBy Schedule//EN",
+        ]
+
+        # The end lines for ics content
+        event_lines_end = [
+            f"END:VCALENDAR",
+            "", 
+        ]
+
+        for week_nr, week_lessons in schedule_snapshot.items():
+            week_nr = int(week_nr)
+            print(f"[-] Working on week {week_nr}")
+
+            for lesson_id, lesson in week_lessons.items():
+                self._save_lesson_to_ics_payload(lesson, self.group_name, week_nr, event_lines, lesson_id, "json")
+
+        event_lines.extend(event_lines_end)
+
+        # Get the properly formatted ics content
+        payload = "\r\n".join(event_lines)
+
+        # Debug
+        if self.debug:
+            print(f"\n\nDEBUG: data from json: {schedule_snapshot}")
+
+        return payload
+
+    def sync_via_json(self, group_name: str = None, weeks: list[int] = None) -> None:
+        """Sync schedule from json to calendar
+
+        Args:
+            group_name (str, optional): _description_. Defaults to None.
+            weeks (list[int], optional): _description_. Defaults to None.
+        """
+
+        # Print states
+        print("\n" + "-" * 50)
+        print("GET DATA FROM SNAPSHOT TO ICS PAYLOAD")
+        print("-" * 50)
+
+        # Check if a group_name was given
+        if group_name is None:
+            group_name = self.group_name
+
+        # Check for weeks
+        if weeks is None:
+            weeks = self._get_date_from_this_week_on(postpone=3, mode="numerical")
+
+        # If there's one weeks, make it iterable
+        if isinstance(weeks, int): weeks = [weeks]
+
+        # Save schedule to json
+        self.save_schedule_to_json()
+
+        # Get calendar
+        my_calendar = self.get_or_create_calendar()
+
+        # Get the payload (was "content" before)
+        payload = self.get_data_from_snapshot_to_ics()
+
+        # Try to save the event
+        try:
+            saved_event = my_calendar.save_event(payload.encode("utf-8"))
+            # Print states
+            print("\n" + "-" * 50)
+            print("SAVE EVENT TO CALENDAR")
+            print("-" * 50)
+            print("[-] Event/Events succesfully created.")
+        except Exception as e:
+            print(f"There was a problem saving the event/events: {e}")
 
 # Local testing
 if __name__ == "__main__":
@@ -549,4 +693,8 @@ if __name__ == "__main__":
 
     # app.sync_schedule()
 
-    app.save_schedule_to_json()
+    # app.save_schedule_to_json()
+
+    # app.get_data_from_snapshot()
+
+    app.sync_via_json()
