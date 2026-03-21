@@ -74,6 +74,7 @@ CALENDAR_NAME = _str("CALENDAR_NAME", "USARBy Schedule")
 # --- User settings ---
 GROUP_NAME = _str("GROUP_NAME", "IT11Z")
 SCHEDULE_PATH = _path("SCHEDULE_PATH", str(_PROJECT_ROOT / "schedule_snapshots" / "schedule_snapshot.json"))
+OLD_SCHEDULE_PATH = _path("OLD_SCHEDULE_PATH", str(_PROJECT_ROOT / "schedule_snapshots" / "old_schedule_snapshot.json"))
 
 # --- Other ---
 FIRST_DAY = _academic_year_start()
