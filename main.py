@@ -19,18 +19,10 @@ from usarby.settings import (
     ICLOUD_PASSWORD,
     CALENDAR_NAME,
     GROUP_NAME,
-    SCHEDULE_PATH
+    SCHEDULE_PATH,
+    FIRST_DAY,
+    FIRST_LESSON_TIME,
 )
-
-# Load .env
-load_dotenv()
-
-# TODO Fix those "print" states in the function. 
-# TODO Is it possilbe to check the year and then get those (also add to setting.py)
-# Constants
-FIRST_DAY = date(2025, 9, 1)
-FIRST_LESSON_TIME = time(8, 0)
-
 
 class CalendarSchedule:
     def __init__(self) -> None:

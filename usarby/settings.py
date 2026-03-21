@@ -7,6 +7,7 @@ Use "pip install -e ." to download the USARBy package in editable mode
 """
 import os
 from pathlib import Path
+from datetime import date, time, datetime
 
 from dotenv import load_dotenv
 
@@ -33,6 +34,7 @@ def _path(key: str, default: str) -> str:
         p = _PROJECT_ROOT / p
     return str(p.resolve())
 
+
 def _str(key: str, default: str) -> str:
     """Unpack a string (try to get value from .env)
 
@@ -44,6 +46,12 @@ def _str(key: str, default: str) -> str:
         str: A value from .env or if non-existent the default
     """
     return os.getenv(key, default).strip() or default
+
+
+def _academic_year_start() -> date:
+    today = date.today()
+    year = today.year if today.month > 9 else today.year - 1
+    return date(year, 9, 1)
 
 
 # --- URLS ---
@@ -60,3 +68,7 @@ CALENDAR_NAME = _str("CALENDAR_NAME", "USARBy Schedule")
 # --- User settings ---
 GROUP_NAME = _str("GROUP_NAME", "IT11Z")
 SCHEDULE_PATH = _path("SCHEDULE_PATH", str(_PROJECT_ROOT / "schedule_snapshots" / "schedule_snapshot.json"))
+
+# --- Other ---
+FIRST_DAY = _academic_year_start()
+FIRST_LESSON_TIME = time(8, 0)
