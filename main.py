@@ -59,10 +59,6 @@ class CalendarSchedule:
         Returns:
             my_principal: Your principal
         """
-        # Print states
-        print("\n" + "-" * 50)
-        print("CONNECT")
-        print("-" * 50)
 
         # Reuse existing connection if available
         if self._principal is not None:
@@ -380,11 +376,6 @@ class CalendarSchedule:
             my_calendar: Your calendar
         """
 
-        # Print states
-        print("\n" + "-" * 50)
-        print("GET OR CREATE CALENDAR")
-        print("-" * 50)
-
         # Get my_principal (connect)
         my_principal = self.connect()
 
@@ -487,11 +478,6 @@ class CalendarSchedule:
             defaultdict: A dictionary that includes the schedule (the snapshot)
         """
 
-        # Print states
-        print("\n" + "-" * 50)
-        print("GET SCHEDULE SNAPSHOT")
-        print("-" * 50)
-
         # If no group name, set default
         if group_name is None:
             group_name = self.group_name
@@ -515,7 +501,7 @@ class CalendarSchedule:
             lessons = raw_schedule.get("week") or []
 
             # Print state
-            print(f"[-] Working on week {week}")
+            print(f"[-] (snapshot) Working on week {week}")
 
             # Parse through all the lessons
             for lesson in lessons:
@@ -554,11 +540,6 @@ class CalendarSchedule:
             group_name (str): your group name
             debug (bool, optional): debug. Defaults to False.
         """
-        
-        # Print states
-        print("\n" + "-" * 50)
-        print("SAVE SCHEDULE TO JSON")
-        print("-" * 50)
 
         # Get schedule
         schedule = self._get_schedule_snapshot(group_name, weeks)
@@ -580,11 +561,6 @@ class CalendarSchedule:
 
     def get_data_from_snapshot_to_ics(self):
         """Fetching the data from the last schedule snapshot"""
-
-        # Print states
-        print("\n" + "-" * 50)
-        print("GET DATA FROM SNAPSHOT TO ICS PAYLOAD")
-        print("-" * 50)
 
         # Open the json file and load the snapshot into a variable
         try:
@@ -609,7 +585,7 @@ class CalendarSchedule:
 
         for week_nr, week_lessons in schedule_snapshot.items():
             week_nr = int(week_nr)
-            print(f"[-] Working on week {week_nr}")
+            print(f"[-] Saving {week_nr} week to ics payload")
 
             for lesson_id, lesson in week_lessons.items():
                 self._save_lesson_to_ics_payload(lesson, self.group_name, week_nr, event_lines, lesson_id, "json")
@@ -632,11 +608,6 @@ class CalendarSchedule:
             group_name (str, optional): _description_. Defaults to None.
             weeks (list[int], optional): _description_. Defaults to None.
         """
-
-        # Print states
-        print("\n" + "-" * 50)
-        print("GET DATA FROM SNAPSHOT TO ICS PAYLOAD")
-        print("-" * 50)
 
         # Check if a group_name was given
         if group_name is None:
@@ -662,10 +633,7 @@ class CalendarSchedule:
         try:
             saved_event = my_calendar.save_event(payload.encode("utf-8"))
             # Print states
-            print("\n" + "-" * 50)
-            print("SAVE EVENT TO CALENDAR")
-            print("-" * 50)
-            print("[-] Event/Events succesfully created.")
+            print("[-] Event(s) succesfully created.")
         except Exception as e:
             print(f"There was a problem saving the event/events: {e}")
 
