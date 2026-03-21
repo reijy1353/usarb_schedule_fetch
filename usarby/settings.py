@@ -49,6 +49,12 @@ def _str(key: str, default: str) -> str:
 
 
 def _academic_year_start() -> date:
+    """Get the start of the academic year
+
+    Returns:
+        date: The start date (YYYY-MM-DD) of the acadmic year
+    """
+
     today = date.today()
     year = today.year if today.month > 9 else today.year - 1
     return date(year, 9, 1)
