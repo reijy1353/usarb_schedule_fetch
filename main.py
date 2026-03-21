@@ -19,6 +19,7 @@ from usarby.settings import (
     ICLOUD_PASSWORD,
     CALENDAR_NAME,
     GROUP_NAME,
+    OLD_SCHEDULE_PATH,
     SCHEDULE_PATH,
     FIRST_DAY,
     FIRST_LESSON_TIME,
@@ -540,6 +541,22 @@ class CalendarSchedule:
         output_file = Path(SCHEDULE_PATH)
         output_file.parent.mkdir(parents=True, exist_ok=True)
 
+        # If the original schedule json exists, create a new one
+        # The one will server for monitoring in later updates
+        # TODO Check the upper comment
+        if output_file.exists():
+            try:
+                with open(SCHEDULE_PATH, "r") as f:
+                    schedule_snapshot: dict = json.load(f)
+                with open(OLD_SCHEDULE_PATH, "w") as f:
+                    json.dump(schedule_snapshot, f, indent=2)
+            except Exception as e:
+                print(f"The file \"{SCHEDULE_PATH}\" coudldn't be readed or created.")
+                return None
+            finally:
+                # Print state
+                print(f"[-] Old schedule saved to json in {OLD_SCHEDULE_PATH}")
+
         # Open a default file ("schedule_snapshot.json") and write the schedule
         try:
             with open(SCHEDULE_PATH, "w") as f:
@@ -547,17 +564,17 @@ class CalendarSchedule:
         except Exception as e:
             print(f"The file \"{SCHEDULE_PATH}\" coudldn't be created.")
             return None
-        
-        # Print state
-        print(f"[-] Schedule saved to json in {SCHEDULE_PATH}")
+        finally:
+            # Print state
+            print(f"[-] Schedule saved to json in {SCHEDULE_PATH}")
 
     def get_data_from_snapshot_to_ics(self):
         """Fetching the data from the last schedule snapshot"""
 
         # Open the json file and load the snapshot into a variable
         try:
-            with open(SCHEDULE_PATH, "r") as fp:
-                schedule_snapshot: dict = json.load(fp)
+            with open(SCHEDULE_PATH, "r") as f:
+                schedule_snapshot: dict = json.load(f)
         except FileNotFoundError:
             print(f"The file \"{SCHEDULE_PATH}\" doesn't exist.")
             return None
