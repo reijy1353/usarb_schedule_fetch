@@ -130,6 +130,7 @@ class CalendarSchedule:
         mode: Literal["numerical"] = ...,
     ) -> list[int]: ...
 
+    # TODO when mode = "numerical", if today is sunday, get data from the next week
     def _get_date_from_this_week_on(self, week: int | None = None, postpone: int = 3, mode: str = "explicit"):
         """Get a range of dates, from first day of the university week, to the 
         one calculated by formula week + postpone (e.g. week = 10, postpone = 3)
@@ -539,11 +540,13 @@ class CalendarSchedule:
 
         # Create directory if None exists
         output_file = Path(SCHEDULE_PATH)
+        old_output_file = Path(OLD_SCHEDULE_PATH)
         output_file.parent.mkdir(parents=True, exist_ok=True)
 
         # If the original schedule json exists, create a new one
         # The one will server for monitoring in later updates
-        # TODO Check the upper comment
+        # TODO After implementing the monitoring (comparing) function
+        # TODO  change the login in here
         if output_file.exists():
             try:
                 with open(SCHEDULE_PATH, "r") as f:
@@ -646,6 +649,22 @@ class CalendarSchedule:
         except Exception as e:
             print(f"There was a problem saving the event/events: {e}")
 
+    # TODO fix compare_json() and make some monitoring updates
+    def compare_json(self) -> bool:
+        
+        schedule = self._get_schedule_snapshot()
+        schedule = json.dumps(schedule, ensure_ascii=False)
+        print(schedule)
+
+        with open(SCHEDULE_PATH, "r") as f:
+            schedule_to_compare = json.load(f)
+
+        print(schedule_to_compare)
+        if schedule == schedule_to_compare: print("EQUAL")
+        else: print("NOPE")
+
+        
+
 # Local testing
 if __name__ == "__main__":
     app = CalendarSchedule()
@@ -674,4 +693,6 @@ if __name__ == "__main__":
 
     # app.get_data_from_snapshot()
 
-    app.sync_via_json()
+    # app.sync_via_json()
+    app.save_schedule_to_json
+    app.compare_json()
