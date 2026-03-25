@@ -649,21 +649,19 @@ class CalendarSchedule:
         except Exception as e:
             print(f"There was a problem saving the event/events: {e}")
 
-    # TODO fix compare_json() and make some monitoring updates
-    def compare_json(self) -> bool:
+    def _compare_full_json(self) -> bool:
         
         schedule = self._get_schedule_snapshot()
         schedule = json.dumps(schedule, ensure_ascii=False)
-        print(schedule)
 
         with open(SCHEDULE_PATH, "r") as f:
             schedule_to_compare = json.load(f)
 
-        print(schedule_to_compare)
-        if schedule == schedule_to_compare: print("EQUAL")
-        else: print("NOPE")
+        schedule_to_compare = json.dumps(schedule_to_compare, ensure_ascii=False)
 
-        
+        if schedule == schedule_to_compare: return True
+        else: return False
+
 
 # Local testing
 if __name__ == "__main__":
@@ -694,5 +692,5 @@ if __name__ == "__main__":
     # app.get_data_from_snapshot()
 
     # app.sync_via_json()
-    app.save_schedule_to_json
-    app.compare_json()
+    # app.save_schedule_to_json()
+    print(app._compare_full_json())
