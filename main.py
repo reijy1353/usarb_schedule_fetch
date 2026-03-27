@@ -8,11 +8,12 @@ from collections import defaultdict
 from dotenv import load_dotenv
 from datetime import datetime, date, time, timedelta, timezone
 import caldav
+from caldav.collection import Principal, Calendar
 from caldav.davclient import get_davclient
 from caldav.lib.error import NotFoundError
 from warnings import deprecated
 
-from dependencies import get_raw_schedule_data, get_lesson_id, get_weekday_number
+from dependencies import get_raw_schedule_data
 from usarby.settings import (
     CALDAV_URL,
     ICLOUD_USERNAME,
@@ -46,7 +47,7 @@ class CalendarSchedule:
         self._client = None
         self._principal = None
         
-    def connect(self) -> caldav.Principal:
+    def connect(self) -> Principal:
         """Connecting to the calendar
         
         Returns:
@@ -57,26 +58,25 @@ class CalendarSchedule:
         if self._principal is not None:
             return self._principal
 
-        self._client = get_davclient(
-            username=self.username,
-            password=self.password,
-            url=self.caldav_url,
-        )
+        with get_davclient(
+            url=CALDAV_URL,
+            username=ICLOUD_USERNAME,
+            password=ICLOUD_PASSWORD
+        ) as client:
+            try:
+                # Get principal from client
+                self._principal = client.get_principal()
+                print(f"[-] Successfully connected to the calendar.")
 
-        try:
-            # Get principal from client
-            self._principal = self._client.principal()
-            print(f"[-] Successfully connected to the calendar.")
-
-            # Debug
-            if self.debug:
-                print(f"\n\nDEBUG: type {type(self._principal)}")
-                print(f"\n\nDEBUG: my_principal: {self._principal}")
-
-            return self._principal
-        except Exception as e:
-            print(f"There's a problem making a connection: {e}")
-            raise
+                # Debug
+                if self.debug:
+                    print(f"\n\nDEBUG: type {type(self._principal)}")
+                    print(f"\n\nDEBUG: my_principal: {self._principal}")
+                    
+                return self._principal
+            except Exception as e:
+                print(f"There's a problem making a connection: {e}")
+                raise
 
     def _get_lesson_time(self, lesson_nr: int):
         """Get lesson start and end time by lesson_nr"""
@@ -94,6 +94,10 @@ class CalendarSchedule:
         
         return lesson_start_time.time(), lesson_end_time.time()
 
+    def _get_weekday_number(self) -> int:
+        """Get today's weekday number"""
+        return datetime.today().weekday()
+
     def _get_this_week(self) -> int:
         """Get lesson week from today"""
         # Get today's date
@@ -103,7 +107,7 @@ class CalendarSchedule:
         days_difference = (today - FIRST_DAY).days
         
         # Calculate week number
-        if get_weekday_number() == 6:
+        if self._get_weekday_number() == 6:
             week_number = (days_difference // 7) + 2
         else:
             week_number = (days_difference // 7) + 1
@@ -242,15 +246,7 @@ class CalendarSchedule:
                 lesson_day, office, teacher = self._unpack_raw(lesson)
 
             # Get lesson's hash (UID)
-            lesson_id = get_lesson_id(
-                group_name, 
-                week, 
-                lesson_day, 
-                lesson_nr, 
-                lesson_name, 
-                lesson_type, 
-                teacher
-            )
+            lesson_id = f"{week}_{lesson_day}_{lesson_nr}"
 
         # Get variables for json schedule
         if mode == "json":
@@ -334,8 +330,8 @@ class CalendarSchedule:
 
         return lesson_nr, lesson_name, lesson_type, lesson_day, office, teacher
 
-    @deprecated("won't be used")
-    def _fetch_events(self, my_calendar: caldav.Calendar | None = None) -> list[caldav.Event]:
+    @deprecated("Won't be used as for now")
+    def _fetch_events(self, my_calendar: Calendar | None = None) -> list[caldav.Event]:
         """Fetching the events from the calendar
         
         Returns:
@@ -362,7 +358,7 @@ class CalendarSchedule:
 
         return my_events
 
-    def get_or_create_calendar(self) -> caldav.Calendar:
+    def get_or_create_calendar(self) -> Calendar:
         """Get the calendar used for schedule, if none exists, it'll create a new one
         naming it by calendar_name from .env
 
@@ -504,18 +500,10 @@ class CalendarSchedule:
                     lesson_day, office, teacher = self._unpack_raw(lesson)
 
                 # Get lesson's hash (UID)
-                lesson_id = get_lesson_id(
-                    group_name, 
-                    week, 
-                    lesson_day, 
-                    lesson_nr, 
-                    lesson_name, 
-                    lesson_type, 
-                    teacher,
-                )
+                lesson_id = f"{week}_{lesson_day}_{lesson_nr}"
 
                 # Save lesson data to schedule
-                entry = schedule[week][lesson_id]
+                entry = schedule[str(week)][lesson_id]
                 entry.update({
                     "lesson_day": lesson_day,
                     "lesson_nr": lesson_nr,
@@ -546,7 +534,7 @@ class CalendarSchedule:
         # If the original schedule json exists, create a new one
         # The one will server for monitoring in later updates
         # TODO After implementing the monitoring (comparing) function
-        # TODO  change the login in here
+        # TODO  change the logic in here
         if output_file.exists():
             try:
                 with open(SCHEDULE_PATH, "r") as f:
@@ -643,24 +631,52 @@ class CalendarSchedule:
 
         # Try to save the event
         try:
-            saved_event = my_calendar.save_event(payload.encode("utf-8"))
+            saved_event = my_calendar.add_event(payload.encode("utf-8"))
             # Print states
             print("[-] Event(s) succesfully created.")
         except Exception as e:
             print(f"There was a problem saving the event/events: {e}")
 
-    def _compare_full_json(self) -> bool:
+    def _compare_full_json(self) -> tuple[bool, dict, dict]:
+        new_schedule = self._get_schedule_snapshot()
+        with open(SCHEDULE_PATH, "r", encoding="utf-8") as f:
+            old_schedule = json.load(f)
+        return new_schedule == old_schedule, old_schedule, new_schedule
+
+    def _diff_schedules(self, old: dict, new: dict) -> set:
+        added = {}
+        removed = {}
+        modified = {}
+
+        all_weeks = sorted(set(old.keys() | new.keys()))
+
+        for week in all_weeks:
+            old_week = old.get(week, {})
+            new_week = new.get(week, {})
+
+            # Check for added lessons
+            for lesson_id in new_week.keys() - old_week.keys():
+                added[lesson_id] = new_week[lesson_id]
+
+            # Check for removed lessons
+            for lesson_id in old_week.keys() - new_week.keys():
+                removed[lesson_id] = old_week[lesson_id]
+
+            # Check for modified lessons
+            for lesson_id in old_week.keys() & new_week.keys():
+                if old_week[lesson_id] != new_week[lesson_id]:
+                    modified[lesson_id] = {
+                        "old": old_week[lesson_id],
+                        "new": new_week[lesson_id],
+                    }
+    
+        return added, removed, modified
         
-        schedule = self._get_schedule_snapshot()
-        schedule = json.dumps(schedule, ensure_ascii=False)
+    def test(self):
+        are_equal, old, new = self._compare_full_json()
+        print(are_equal)
+        print(self._diff_schedules(old, new))
 
-        with open(SCHEDULE_PATH, "r") as f:
-            schedule_to_compare = json.load(f)
-
-        schedule_to_compare = json.dumps(schedule_to_compare, ensure_ascii=False)
-
-        if schedule == schedule_to_compare: return True
-        else: return False
 
 
 # Local testing
@@ -668,29 +684,6 @@ if __name__ == "__main__":
     app = CalendarSchedule()
     app.debug = False
 
-    # app.get_date_from_this_week_on(mode="explicit")
-    # app.get_or_create_calendar()
-    # my_events = app._fetch_events()
-    # print(my_events[0].data)
-    
-    # my_calendar = app.get_or_create_calendar()
-    # print(my_calendar)
-
-    # my_principal = app.connect()
-    # print(my_principal)
-    
-    # print(datetime.now(timezone.utc))
-    
-    # app.parse_data_and_save_to_calendar()
-    
-    # print(app._get_lesson_date_and_time(10, 1, 2))
-
-    # app.sync_schedule()
-
-    # app.save_schedule_to_json()
-
-    # app.get_data_from_snapshot()
-
-    # app.sync_via_json()
-    # app.save_schedule_to_json()
-    print(app._compare_full_json())
+    # print(app._compare_full_json())
+    app.save_schedule_to_json()
+    app.test()
