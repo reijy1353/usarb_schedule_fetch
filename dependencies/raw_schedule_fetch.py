@@ -17,14 +17,14 @@ except ConnectionError:
 r = session.get(MAIN_URL)
 
 
-def get_csrf():
+def get_csrf() -> str:
     """Get CSRF token from the main url"""
     soup: BeautifulSoup = BeautifulSoup(r.text, "html.parser")
     csrf: str = soup.find("meta", {"name": "csrf-token"})["content"]
     return csrf
 
 
-def get_raw_schedule_data(your_group_name: str, semester: int = 1, university_week: int = 1, debug: bool = False):
+def get_raw_schedule_data(your_group_name: str, semester: int = 1, university_week: int = 1, debug: bool = False) -> dict:
     """
     Fetches raw lesson data for a specific group and time period.
 
@@ -103,7 +103,7 @@ def _get_group_id_by_group_name(group_name: str, csrf: str, debug: bool = False)
 
 
 # Get the user's lessons
-def _get_lessons_data(payload: dict, debug: bool = False):
+def _get_lessons_data(payload: dict, debug: bool = False) -> dict:
     """Get lessons data (payload) in json
 
     Args:
