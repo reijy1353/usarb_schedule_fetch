@@ -4,6 +4,7 @@ from collections import defaultdict
 from typing import Any
 from datetime import datetime
 from pathlib import Path
+from warnings import deprecated
 
 from dependencies import get_raw_schedule_data
 from usarby.settings import SCHEDULE_PATH
@@ -129,6 +130,7 @@ def get_schedule_for_snapshot(group_name: str, *weeks: int, debug: bool = False)
                     
 
 # DEPRECATED
+@deprecated("Use the one in the main.py")
 def save_schedule_to_json(group_name: str, *weeks: int, debug: bool = False):
     """Saving the schedule retrieved from get_schedule() function to schedule_snapshot.json
         (overwriting it it already exists)
