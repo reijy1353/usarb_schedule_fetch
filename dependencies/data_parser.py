@@ -14,34 +14,7 @@ def get_weekday_number() -> int:
     """Get today's weekday number"""
     return datetime.today().weekday()
 
-
-def get_lesson_id(group_name: str, week: int, lesson_day: int, lesson_nr: int, lesson_name: str, lesson_type: str, teacher: str, debug: bool = False):
-    f"""Returning a 32 character hash created using MD5 and a string from the given args
-
-    Args:
-        lesson_day (int): lesson day
-        lesson_nr (int): lessons number
-        lesson_name (str): lesson name
-        lesson_type (str): lesson type
-        office (int): office
-        teacher (str): teacher
-        debug (bool, optional): debug. Defaults to False.
-
-    Returns:
-        string: [your_hash]@usarb-schedule.local
-    """
-    # Get string for hash transform and transform it using MD5
-    to_hash = f"{group_name}{week}{lesson_day}{lesson_nr}{lesson_name}{lesson_type}{teacher}"
-    hash = hashlib.md5(to_hash.encode()).hexdigest()[:32]
-    
-    # Debug
-    if debug:
-        print(f"DEBUG: {hash}")
-    
-    return hash
-
-
-# DEPRECATED
+@deprecated("The function you're trying to use is deprecated, check alternatives.")
 def get_schedule_for_snapshot(group_name: str, *weeks: int, debug: bool = False):
     """All the specifications/keywords we need:
         cours_nr -> lesson number (1 - 8)
