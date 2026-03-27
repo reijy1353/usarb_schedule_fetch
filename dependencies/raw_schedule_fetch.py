@@ -1,11 +1,18 @@
 import requests
+from requests.exceptions import ConnectionError
 from bs4 import BeautifulSoup
 
 from usarby.settings import MAIN_URL
 
 
+# TODO properly implement try/except block in future updates
 # Initialize the session
-session = requests.Session()
+try:
+    session = requests.Session()
+except ConnectionError:
+    session = None
+    print("Sorry, but the service isn't available at the moment.")
+
 # Get the home page (for cookies + csrf)
 r = session.get(MAIN_URL)
 
